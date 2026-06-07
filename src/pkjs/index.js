@@ -499,6 +499,7 @@ Pebble.addEventListener("appmessage", function(e) {
       routineId = routineId.substring(3);
     }
     localStorage.setItem("active_routine_id", routineId);
+    syncActiveRoutineToWatch(true);
   }
   
   // Watch requests active routine details (4 = request active routine details)

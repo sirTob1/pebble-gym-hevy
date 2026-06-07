@@ -70,7 +70,7 @@ static bool s_workout_in_progress = false;
 #if defined(PBL_HEALTH)
 static int s_current_heart_rate = 0;
 #endif
-static bool s_pending_active_routine_sync = false;
+static char s_pending_routine_id_to_activate[32] = "";
 static int s_weight_unit = UNIT_KG;
 static int s_rest_seconds = 90;
 static int s_rest_seconds_left = 0;
@@ -144,30 +144,30 @@ static void send_request_sync() {
   }
 }
 
-static int s_details_retry_count = 0;
+static void sync_window_appear(Window *window);
 
-static void send_request_active_routine_details();
-
-static void send_request_active_routine_details_timer_callback(void *data) {
-  send_request_active_routine_details();
+static void sync_window_appear_retry_callback(void *data) {
+  sync_window_appear((Window *)data);
 }
 
-// Request active routine details from phone companion
-static void send_request_active_routine_details() {
-  DictionaryIterator *iter;
-  AppMessageResult result = app_message_outbox_begin(&iter);
-  if (result == APP_MSG_OK && iter) {
-    s_details_retry_count = 0;
-    dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 4); // 4 = REQUEST_ACTIVE_ROUTINE_DETAILS
-    app_message_outbox_send();
-  } else {
-    if (s_details_retry_count < 10) {
-      s_details_retry_count++;
-      APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Outbox busy (%d), retry %d/10 in 100ms...", result, s_details_retry_count);
-      app_timer_register(100, send_request_active_routine_details_timer_callback, NULL);
+static void sync_window_appear(Window *window) {
+  if (s_pending_routine_id_to_activate[0] != '\0') {
+    DictionaryIterator *iter;
+    AppMessageResult result = app_message_outbox_begin(&iter);
+    if (result == APP_MSG_OK && iter) {
+      dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 3); // 3 = ACTIVATE_ROUTINE
+      dict_write_cstring(iter, MESSAGE_KEY_ACTIVE_ROUTINE_ID, s_pending_routine_id_to_activate);
+      AppMessageResult send_res = app_message_outbox_send();
+      if (send_res == APP_MSG_OK) {
+        APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Sent activate request for routine: %s", s_pending_routine_id_to_activate);
+        s_pending_routine_id_to_activate[0] = '\0';
+      } else {
+        APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Outbox send failed (%d), retrying in 100ms...", send_res);
+        app_timer_register(100, sync_window_appear_retry_callback, window);
+      }
     } else {
-      APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox busy, max retries reached. Action failed.");
-      s_details_retry_count = 0;
+      APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Outbox busy on appear (%d), retrying in 100ms...", result);
+      app_timer_register(100, sync_window_appear_retry_callback, window);
     }
   }
 }
@@ -744,12 +744,7 @@ static void sync_window_unload(Window *window) {
   layer_destroy(s_sync_layer);
 }
 
-static void sync_window_appear(Window *window) {
-  if (s_pending_active_routine_sync) {
-    s_pending_active_routine_sync = false;
-    send_request_active_routine_details();
-  }
-}
+
 
 #if defined(PBL_HEALTH)
 static void health_handler(HealthEventType event, void *context) {
@@ -925,20 +920,8 @@ static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
   int idx = cell_index->row;
   RoutineHeader *r = &s_routines[idx];
   
-  // Send activate action and routine ID to phone companion FIRST
-  DictionaryIterator *iter;
-  app_message_outbox_begin(&iter);
-  if (iter) {
-    dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 3); // 3 = ACTIVATE_ROUTINE
-    dict_write_cstring(iter, MESSAGE_KEY_ACTIVE_ROUTINE_ID, r->id);
-    AppMessageResult result = app_message_outbox_send();
-    if (result != APP_MSG_OK) {
-      APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox send failed: %d", result);
-    } else {
-      APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Outbox send success for routine: %s", r->id);
-      s_pending_active_routine_sync = true;
-    }
-  }
+  // Save the selected routine ID to trigger activation sync after window transition completes
+  snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", r->id);
   
   // Pop routine list menu to return to sync view
   window_stack_pop(true);
