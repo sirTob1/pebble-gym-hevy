@@ -52,13 +52,13 @@ typedef struct {
 #define MAX_ROUTINES 10
 
 typedef struct {
-  char id[16];
+  char id[32];
   char name[32];
 } RoutineHeader;
 
 static RoutineHeader s_routines[MAX_ROUTINES];
 static int s_routine_count = 0;
-static char s_active_routine_id[16] = "";
+static char s_active_routine_id[32] = "";
 
 static ExerciseData s_exercises[MAX_EXERCISES];
 static int s_exercise_count = 0;
@@ -857,7 +857,12 @@ static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
   if (iter) {
     dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 3); // 3 = ACTIVATE_ROUTINE
     dict_write_cstring(iter, MESSAGE_KEY_ACTIVE_ROUTINE_ID, r->id);
-    app_message_outbox_send();
+    AppMessageResult result = app_message_outbox_send();
+    if (result != APP_MSG_OK) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox send failed: %d", result);
+    } else {
+      APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Outbox send success for routine: %s", r->id);
+    }
   }
   
   // Pop routine list menu to return to sync view
