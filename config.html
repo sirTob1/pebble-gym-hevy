@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PebbleGym Einstellungen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0b0f;
+      --card-bg: #14141c;
+      --card-border: #232330;
+      --card-border-hover: #3b2c5c;
+      --text-color: #f0f0f5;
+      --text-muted: #8e8e9f;
+      --accent: #8a2be2;
+      --accent-hover: #7b1fa2;
+      --accent-glow: rgba(138, 43, 226, 0.4);
+      --success: #00e676;
+      --error: #ff1744;
+      --warning: #ffb300;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 15px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding-bottom: 80px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 25px;
+      margin-top: 10px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0;
+      background: linear-gradient(135deg, #00f0ff 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin: 5px 0 0 0;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      border-color: var(--card-border-hover);
+      box-shadow: 0 8px 24px rgba(138, 43, 226, 0.1);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: var(--text-color);
+    }
+
+    input[type="text"], select, textarea {
+      width: 100%;
+      background-color: #08080c;
+      border: 1px solid var(--card-border);
+      color: var(--text-color);
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+      text-align: center;
+    }
+
+    .btn:hover {
+      background-color: var(--accent-hover);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background-color: #232330;
+      color: var(--text-color);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background-color: #2d2d3d;
+      box-shadow: none;
+    }
+
+    .btn-danger {
+      background-color: rgba(255, 23, 68, 0.15);
+      color: #ff5252;
+      border: 1px solid rgba(255, 23, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+      background-color: var(--error);
+      color: white;
+    }
+
+    .status-msg {
+      font-size: 13px;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+      font-weight: 500;
+    }
+
+    .status-msg.success {
+      background-color: rgba(0, 230, 118, 0.12);
+      color: #55efc4;
+      border: 1px solid rgba(0, 230, 118, 0.25);
+      display: block;
+    }
+
+    .status-msg.error {
+      background-color: rgba(255, 23, 68, 0.12);
+      color: #ff7675;
+      border: 1px solid rgba(255, 23, 68, 0.25);
+      display: block;
+    }
+
+    .status-msg.warning {
+      background-color: rgba(255, 179, 0, 0.12);
+      color: #ffe082;
+      border: 1px solid rgba(255, 179, 0, 0.25);
+      display: block;
+    }
+
+    /* List styling for Routines & History */
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background-color: #0e0e15;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
+    }
+
+    .list-item:hover {
+      border-color: #33334d;
+    }
+
+    .list-item-info {
+      flex-grow: 1;
+      margin-right: 15px;
+    }
+
+    .list-item-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .list-item-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .list-item-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .list-btn {
+      background-color: #1a1a24;
+      border: 1px solid var(--card-border);
+      color: var(--text-color);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .list-btn:hover {
+      background-color: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .list-btn.danger:hover {
+      background-color: var(--error);
+      border-color: var(--error);
+    }
+
+    .list-btn.active {
+      background-color: var(--success);
+      color: #0b0b0f;
+      border-color: var(--success);
+      font-weight: 600;
+    }
+
+    .preview-box {
+      margin-top: 15px;
+      background-color: #08080c;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      display: none;
+    }
+
+    .preview-title {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .preview-exercise {
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #1c1c28;
+    }
+
+    .preview-exercise:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .tab-container {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      transition: color 0.2s, background-color 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--text-color);
+      background-color: #1a1a24;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Fixed bottom bar */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: #0b0b0f;
+      border-top: 1px solid var(--card-border);
+      padding: 12px 15px;
+      display: flex;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .bottom-bar .container {
+      width: 100%;
+      max-width: 480px;
+      padding-bottom: 0;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>PebbleGym</h1>
+    <p>Hevy Workout Companion & History</p>
+  </header>
+
+  <!-- Section 1: Routine Import -->
+  <div class="card">
+    <div class="card-title">Routine importieren</div>
+    
+    <div class="tab-container">
+      <button class="tab-btn active" onclick="switchImportTab('tab-url')">Hevy Link</button>
+      <button class="tab-btn" onclick="switchImportTab('tab-raw')">Raw Text / JSON</button>
+    </div>
+
+    <!-- Tab A: URL Input -->
+    <div id="tab-url" class="tab-content active">
+      <div class="form-group">
+        <label for="hevy-url">Hevy Routine URL</label>
+        <input type="text" id="hevy-url" placeholder="https://hevy.com/routine/..." oninput="clearImportMessage()">
+      </div>
+      <button class="btn" style="margin-top: 10px;" onclick="loadHevyUrl()">Laden & Speichern</button>
+    </div>
+
+    <!-- Tab B: Raw Input -->
+    <div id="tab-raw" class="tab-content">
+      <div class="form-group">
+        <label for="raw-data">HTML oder JSON Inhalt einfügen</label>
+        <textarea id="raw-data" rows="5" placeholder="Füge den XML/HTML Quelltext der Hevy Seite oder den exportierten JSON-Inhalt hier ein..." oninput="previewRawData()"></textarea>
+      </div>
+      <button class="btn" style="margin-top: 10px;" onclick="importRawData()">Importieren</button>
+    </div>
+
+    <div id="import-status" class="status-msg"></div>
+
+    <div id="preview-box" class="preview-box">
+      <div class="preview-title" id="preview-title-text">Vorschau</div>
+      <div id="preview-content"></div>
+    </div>
+  </div>
+
+  <!-- Section 2: Saved Routines -->
+  <div class="card">
+    <div class="card-title">Meine Routinen</div>
+    <div id="routines-list"></div>
+    <div id="no-routines-text" style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 10px 0;">Keine Routinen geladen. Bitte importiere eine Routine oben.</div>
+  </div>
+
+  <!-- Section 3: History -->
+  <div class="card">
+    <div class="card-title">
+      <span>Trainingsverlauf</span>
+      <button class="list-btn" style="font-size: 11px; padding: 4px 8px;" onclick="exportHistoryCSV()">CSV Export</button>
+    </div>
+    <div id="history-list"></div>
+    <div id="no-history-text" style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 10px 0;">Noch keine aufgezeichneten Workouts vorhanden.</div>
+    <button class="btn btn-secondary btn-danger" style="margin-top: 15px; padding: 8px; font-size: 13px;" onclick="clearAllHistory()">Verlauf leeren</button>
+  </div>
+
+  <!-- Section 4: Settings -->
+  <div class="card">
+    <div class="card-title">Einstellungen</div>
+    <div class="form-group">
+      <label for="weight-unit">Gewichtseinheit</label>
+      <select id="weight-unit">
+        <option value="kg" selected>Kilogramm (kg)</option>
+        <option value="lbs">Pfund (lbs)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="rest-time">Standard Pausenzeit</label>
+      <select id="rest-time">
+        <option value="60">60 Sekunden</option>
+        <option value="90" selected>90 Sekunden</option>
+        <option value="120">120 Sekunden</option>
+        <option value="180">180 Sekunden</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="container" style="padding: 0; margin: 0;">
+    <button id="save-btn" class="btn" onclick="saveAndClose()">Speichern & Schließen</button>
+  </div>
+</div>
+
+<script>
+  // Global State parsed from URL query parameters
+  var savedRoutines = [];
+  var workoutHistory = [];
+  var activeRoutineId = "";
+  var weightUnit = "kg";
+  var restTime = "90";
+  
+  // Parse Query Parameters
+  function getQueryParam(name) {
+    var query = window.location.search.substring(1);
+    var vars = query.split("&");
+    for (var i = 0; i < vars.length; i++) {
+      var pair = vars[i].split("=");
+      if (decodeURIComponent(pair[0]) === name) {
+        return decodeURIComponent(pair[1]);
+      }
+    }
+    return "";
+  }
+
+  // Initialize Data
+  function init() {
+    var routinesStr = getQueryParam("routines");
+    var historyStr = getQueryParam("history");
+    var activeIdStr = getQueryParam("active_id");
+    
+    if (routinesStr) {
+      try {
+        savedRoutines = JSON.parse(routinesStr);
+      } catch(e) {
+        console.log("Error parsing routines query parameter: " + e);
+        savedRoutines = [];
+      }
+    }
+    if (historyStr) {
+      try {
+        workoutHistory = JSON.parse(historyStr);
+      } catch(e) {
+        console.log("Error parsing history query parameter: " + e);
+        workoutHistory = [];
+      }
+    }
+    if (activeIdStr) {
+      activeRoutineId = activeIdStr;
+    }
+    
+    // Load local options from localStorage or query if sent
+    var storedUnit = localStorage.getItem("pebble_gym_unit");
+    if (storedUnit) weightUnit = storedUnit;
+    document.getElementById("weight-unit").value = weightUnit;
+    
+    var storedRest = localStorage.getItem("pebble_gym_rest");
+    if (storedRest) restTime = storedRest;
+    document.getElementById("rest-time").value = restTime;
+    
+    renderRoutines();
+    renderHistory();
+  }
+
+  // Switch between tabs
+  function switchImportTab(tabId) {
+    var tabs = document.getElementsByClassName("tab-content");
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.remove("active");
+    }
+    document.getElementById(tabId).classList.add("active");
+
+    var buttons = document.getElementsByClassName("tab-btn");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.remove("active");
+    }
+    event.currentTarget.classList.add("active");
+    clearImportMessage();
+  }
+
+  // Scraper parser logic (runs in configuration page as fallback)
+  function parseHevyRoutineData(htmlOrJson) {
+    var routineData = null;
+    
+    try {
+      var parsed = JSON.parse(htmlOrJson);
+      if (parsed.routine) {
+        routineData = parsed.routine;
+      } else if (parsed.title && parsed.exercises) {
+        routineData = parsed;
+      }
+    } catch (e) {
+      var match = htmlOrJson.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+      if (match) {
+        try {
+          var data = JSON.parse(match[1]);
+          if (data.props && data.props.pageProps && data.props.pageProps.routine) {
+            routineData = data.props.pageProps.routine;
+          } else if (data.props && data.props.pageProps && data.props.pageProps.initialState && data.props.pageProps.initialState.routine) {
+            routineData = data.props.pageProps.initialState.routine;
+          }
+        } catch (err) {
+          console.log("Error parsing Next JSON: " + err);
+        }
+      }
+    }
+    
+    if (!routineData) return null;
+    
+    var routine = {
+      id: routineData.id ? routineData.id.toString() : "r_" + Date.now(),
+      title: routineData.title || "Routine",
+      exercises: []
+    };
+    
+    var exercises = routineData.exercises || [];
+    for (var i = 0; i < exercises.length; i++) {
+      var ex = exercises[i];
+      var exTitle = ex.title || (ex.exercise_template && ex.exercise_template.name) || "Exercise " + (i + 1);
+      var sets = ex.sets || [];
+      var cleanSets = [];
+      
+      for (var j = 0; j < sets.length; j++) {
+        var s = sets[j];
+        var weight = s.weight_kg !== null && s.weight_kg !== undefined ? Math.round(s.weight_kg * 100) : 0;
+        cleanSets.push({
+          index: j,
+          reps: s.reps !== null && s.reps !== undefined ? s.reps : 0,
+          weight: weight
+        });
+      }
+      
+      routine.exercises.push({
+        index: i,
+        name: exTitle,
+        sets: cleanSets
+      });
+    }
+    
+    return routine;
+  }
+
+  // Import raw JSON/HTML data pasted
+  function importRawData() {
+    var rawText = document.getElementById("raw-data").value.trim();
+    if (!rawText) {
+      showImportMessage("Bitte füge zuerst den Inhalt ein.", "error");
+      return;
+    }
+    
+    var parsed = parseHevyRoutineData(rawText);
+    if (parsed) {
+      // Add to saved list
+      var existingIdx = -1;
+      for (var i = 0; i < savedRoutines.length; i++) {
+        if (savedRoutines[i].id === parsed.id) {
+          existingIdx = i;
+          break;
+        }
+      }
+      
+      if (existingIdx !== -1) {
+        savedRoutines[existingIdx] = parsed;
+        showImportMessage("Routine '" + parsed.title + "' erfolgreich aktualisiert!", "success");
+      } else {
+        savedRoutines.push(parsed);
+        activeRoutineId = parsed.id; // Auto select
+        showImportMessage("Routine '" + parsed.title + "' erfolgreich importiert!", "success");
+      }
+      
+      document.getElementById("raw-data").value = "";
+      document.getElementById("preview-box").style.display = "none";
+      renderRoutines();
+    } else {
+      showImportMessage("Konnte keine Routine-Daten finden. Überprüfe den kopierten Text.", "error");
+    }
+  }
+
+  // Preview raw data
+  function previewRawData() {
+    var rawText = document.getElementById("raw-data").value.trim();
+    var previewBox = document.getElementById("preview-box");
+    var previewContent = document.getElementById("preview-content");
+    
+    if (!rawText) {
+      previewBox.style.display = "none";
+      return;
+    }
+    
+    var parsed = parseHevyRoutineData(rawText);
+    if (parsed) {
+      previewBox.style.display = "block";
+      document.getElementById("preview-title-text").innerText = "Vorschau: " + parsed.title;
+      
+      var html = "";
+      parsed.exercises.forEach(function(ex) {
+        html += "<div class='preview-exercise'>";
+        html += "<strong>" + ex.name + "</strong> (" + ex.sets.length + " Sätze)<br>";
+        var setStrings = ex.sets.map(function(s) {
+          return s.reps + "x " + (s.weight / 100) + " kg";
+        });
+        html += "<span style='color: var(--text-muted);'>" + setStrings.join(" | ") + "</span>";
+        html += "</div>";
+      });
+      previewContent.innerHTML = html;
+    } else {
+      previewBox.style.display = "none";
+    }
+  }
+
+  // Trigger loading via Hevy URL
+  // Note: Due to CORS, direct client-side fetching of hevy.com may fail.
+  // We notify the user that if it fails, we will pass the URL to PebbleKit JS on save to fetch it,
+  // or they can use the Raw Tab.
+  function loadHevyUrl() {
+    var url = document.getElementById("hevy-url").value.trim();
+    if (!url) {
+      showImportMessage("Bitte gib eine Hevy-Routine-URL ein.", "error");
+      return;
+    }
+    
+    if (url.indexOf("hevy.com/routine/") === -1 && url.indexOf("link.hevy.com/routine/") === -1) {
+      showImportMessage("Ungültige Hevy-Routine-URL. Format: https://hevy.com/routine/[id]", "error");
+      return;
+    }
+
+    // Try a direct client-side fetch first. (This might fail due to CORS, which we handle)
+    showImportMessage("Versuche Routine direkt abzurufen...", "warning");
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        var parsed = parseHevyRoutineData(xhr.responseText);
+        if (parsed) {
+          var existingIdx = -1;
+          for (var i = 0; i < savedRoutines.length; i++) {
+            if (savedRoutines[i].id === parsed.id) {
+              existingIdx = i;
+              break;
+            }
+          }
+          if (existingIdx !== -1) {
+            savedRoutines[existingIdx] = parsed;
+          } else {
+            savedRoutines.push(parsed);
+            activeRoutineId = parsed.id;
+          }
+          showImportMessage("Routine '" + parsed.title + "' erfolgreich geladen!", "success");
+          document.getElementById("hevy-url").value = "";
+          renderRoutines();
+        } else {
+          fallbackToJSSync(url);
+        }
+      } else {
+        fallbackToJSSync(url);
+      }
+    };
+    xhr.onerror = function() {
+      fallbackToJSSync(url);
+    };
+    xhr.send();
+  }
+
+  function fallbackToJSSync(url) {
+    // CORS blocked or fetch failed. We tell the user we'll process it on the phone when saving.
+    showImportMessage("Direkt-Abruf durch CORS geblockt. Der Link wird beim Klicken auf 'Speichern' im Hintergrund über das Smartphone geladen.", "warning");
+    // Save URL to query later
+    document.getElementById("hevy-url").dataset.pendingUrl = url;
+  }
+
+  function showImportMessage(msg, type) {
+    var el = document.getElementById("import-status");
+    el.innerText = msg;
+    el.className = "status-msg " + type;
+  }
+
+  function clearImportMessage() {
+    var el = document.getElementById("import-status");
+    el.className = "status-msg";
+    el.innerText = "";
+  }
+
+  // Render Saved Routines
+  function renderRoutines() {
+    var list = document.getElementById("routines-list");
+    var noRoutinesText = document.getElementById("no-routines-text");
+    list.innerHTML = "";
+    
+    if (savedRoutines.length === 0) {
+      noRoutinesText.style.display = "block";
+      return;
+    }
+    noRoutinesText.style.display = "none";
+    
+    savedRoutines.forEach(function(routine) {
+      var item = document.createElement("div");
+      item.className = "list-item";
+      
+      var info = document.createElement("div");
+      info.className = "list-item-info";
+      
+      var title = document.createElement("div");
+      title.className = "list-item-title";
+      title.innerText = routine.title;
+      
+      var meta = document.createElement("div");
+      meta.className = "list-item-meta";
+      meta.innerText = routine.exercises.length + " Übungen";
+      
+      info.appendChild(title);
+      info.appendChild(meta);
+      
+      var actions = document.createElement("div");
+      actions.className = "list-item-actions";
+      
+      var isActive = (routine.id === activeRoutineId);
+      var actBtn = document.createElement("button");
+      actBtn.className = "list-btn" + (isActive ? " active" : "");
+      actBtn.innerText = isActive ? "Aktiv" : "Aktivieren";
+      actBtn.onclick = function() {
+        activeRoutineId = routine.id;
+        renderRoutines();
+      };
+      actions.appendChild(actBtn);
+      
+      var delBtn = document.createElement("button");
+      delBtn.className = "list-btn danger";
+      delBtn.innerText = "Löschen";
+      delBtn.onclick = function() {
+        if (confirm("Routine '" + routine.title + "' wirklich löschen?")) {
+          savedRoutines = savedRoutines.filter(function(r) { return r.id !== routine.id; });
+          if (activeRoutineId === routine.id) {
+            activeRoutineId = savedRoutines.length > 0 ? savedRoutines[0].id : "";
+          }
+          renderRoutines();
+        }
+      };
+      actions.appendChild(delBtn);
+      
+      item.appendChild(info);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  // Render History List
+  function renderHistory() {
+    var list = document.getElementById("history-list");
+    var noHistoryText = document.getElementById("no-history-text");
+    list.innerHTML = "";
+    
+    if (workoutHistory.length === 0) {
+      noHistoryText.style.display = "block";
+      return;
+    }
+    noHistoryText.style.display = "none";
+    
+    // Render in reverse chronological order
+    for (var i = workoutHistory.length - 1; i >= 0; i--) {
+      var w = workoutHistory[i];
+      var item = document.createElement("div");
+      item.className = "list-item";
+      
+      var info = document.createElement("div");
+      info.className = "list-item-info";
+      
+      var title = document.createElement("div");
+      title.className = "list-item-title";
+      
+      var date = new Date(w.timestamp);
+      var dateStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      title.innerText = w.routine_title + " (" + dateStr + ")";
+      
+      var meta = document.createElement("div");
+      meta.className = "list-item-meta";
+      
+      var exerciseStrings = [];
+      var exercises = w.exercises || [];
+      exercises.forEach(function(ex) {
+        var completedSets = 0;
+        ex.sets.forEach(function(s) {
+          if (s && s.status === 1) completedSets++;
+        });
+        exerciseStrings.push(ex.name + " (" + completedSets + " Sätze)");
+      });
+      meta.innerText = exerciseStrings.join(", ");
+      
+      info.appendChild(title);
+      info.appendChild(meta);
+      
+      var actions = document.createElement("div");
+      actions.className = "list-item-actions";
+      
+      var delBtn = document.createElement("button");
+      delBtn.className = "list-btn danger";
+      delBtn.innerText = "Entfernen";
+      
+      // IIFE to capture current loop index
+      (function(idx) {
+        delBtn.onclick = function() {
+          if (confirm("Diesen Verlaufseintrag wirklich löschen?")) {
+            workoutHistory.splice(idx, 1);
+            renderHistory();
+          }
+        };
+      })(i);
+      
+      actions.appendChild(delBtn);
+      
+      item.appendChild(info);
+      item.appendChild(actions);
+      list.appendChild(item);
+    }
+  }
+
+  // Delete all history
+  function clearAllHistory() {
+    if (confirm("Bist du sicher, dass du deinen gesamten Trainingsverlauf unwiderruflich löschen willst?")) {
+      workoutHistory = [];
+      renderHistory();
+    }
+  }
+
+  // Export History to CSV
+  function exportHistoryCSV() {
+    if (workoutHistory.length === 0) {
+      alert("Kein Trainingsverlauf zum Exportieren vorhanden.");
+      return;
+    }
+    
+    var csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Datum,Routine,Uebung,Satz,Wiederholungen,Gewicht (kg)\n";
+    
+    workoutHistory.forEach(function(w) {
+      var dateStr = new Date(w.timestamp).toISOString();
+      var exercises = w.exercises || [];
+      exercises.forEach(function(ex) {
+        var sets = ex.sets || [];
+        sets.forEach(function(s, sIdx) {
+          if (s && s.status === 1) {
+            var row = [
+              dateStr,
+              '"' + w.routine_title.replace(/"/g, '""') + '"',
+              '"' + ex.name.replace(/"/g, '""') + '"',
+              sIdx + 1,
+              s.reps,
+              s.weight / 100
+            ];
+            csvContent += row.join(",") + "\n";
+          }
+        });
+      });
+    });
+    
+    var encodedUri = encodeURI(csvContent);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "pebble_gym_history_" + Date.now() + ".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Save Settings and Close WebView
+  function saveAndClose() {
+    weightUnit = document.getElementById("weight-unit").value;
+    restTime = document.getElementById("rest-time").value;
+    
+    localStorage.setItem("pebble_gym_unit", weightUnit);
+    localStorage.setItem("pebble_gym_rest", restTime);
+    
+    var pendingUrl = document.getElementById("hevy-url").dataset.pendingUrl || "";
+    
+    var response = {
+      saved_routines: savedRoutines,
+      active_routine_id: activeRoutineId,
+      workout_history: workoutHistory,
+      hevy_link: pendingUrl
+    };
+    
+    var responseStr = encodeURIComponent(JSON.stringify(response));
+    console.log("PebbleGym Config: Sending response to watch: " + responseStr.substring(0, 150));
+    window.location.href = "pebblejs://close#" + responseStr;
+  }
+
+  // Initialize page
+  window.onload = init;
+</script>
+</body>
+</html>
