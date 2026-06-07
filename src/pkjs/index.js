@@ -491,8 +491,8 @@ Pebble.addEventListener("appmessage", function(e) {
   }
   
   // Watch requests to activate a routine (3 = activate routine)
-  if (workoutAction === 3 && activeRoutineId !== undefined) {
-    var routineId = activeRoutineId;
+  if (workoutAction === 3 && activeRoutineId !== undefined && activeRoutineId !== null) {
+    var routineId = activeRoutineId.toString();
     console.log("PebbleGym JS: Watch requested to activate routine: " + routineId);
     // Strip the 'id_' prefix if present
     if (routineId.indexOf("id_") === 0) {
