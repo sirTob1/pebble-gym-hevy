@@ -1,0 +1,46 @@
+{
+  "name": "pebble-gym-hevy",
+  "author": "Antigravity",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "PebbleGym",
+    "uuid": "da2774db-f542-491b-871d-f8ad7eb02e1c",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "basalt",
+      "chalk",
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": [
+      "EXERCISE_INDEX",
+      "EXERCISE_NAME",
+      "SET_COUNT",
+      "SET_INDEX",
+      "TARGET_WEIGHT",
+      "TARGET_REPS",
+      "PREV_WEIGHT",
+      "PREV_REPS",
+      "WORKOUT_ACTION",
+      "LOG_EXERCISE_INDEX",
+      "LOG_SET_INDEX",
+      "LOG_REPS",
+      "LOG_WEIGHT",
+      "LOG_STATUS"
+    ],
+    "resources": {
+      "media": []
+    },
+    "capabilities": [
+      "configurable"
+    ]
+  }
+}

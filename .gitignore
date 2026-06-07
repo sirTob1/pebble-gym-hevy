@@ -1,0 +1,13 @@
+# Pebble build artifacts
+/build/
+.lock-waf_*
+.lock-wscript
+
+# Node modules
+node_modules/
+
+# OS/IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
