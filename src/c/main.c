@@ -52,13 +52,13 @@ typedef struct {
 #define MAX_ROUTINES 10
 
 typedef struct {
-  char id[32];
+  char id[64];
   char name[32];
 } RoutineHeader;
 
 static RoutineHeader s_routines[MAX_ROUTINES];
 static int s_routine_count = 0;
-static char s_active_routine_id[32] = "";
+static char s_active_routine_id[64] = "";
 
 static ExerciseData s_exercises[MAX_EXERCISES];
 static int s_exercise_count = 0;
@@ -70,7 +70,7 @@ static bool s_workout_in_progress = false;
 #if defined(PBL_HEALTH)
 static int s_current_heart_rate = 0;
 #endif
-static char s_pending_routine_id_to_activate[32] = "";
+static char s_pending_routine_id_to_activate[64] = "";
 static int s_weight_unit = UNIT_KG;
 static int s_rest_seconds = 90;
 static int s_rest_seconds_left = 0;
@@ -160,7 +160,6 @@ static void sync_window_appear(Window *window) {
       AppMessageResult send_res = app_message_outbox_send();
       if (send_res == APP_MSG_OK) {
         APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Sent activate request for routine: %s", s_pending_routine_id_to_activate);
-        s_pending_routine_id_to_activate[0] = '\0';
       } else {
         APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Outbox send failed (%d), retrying in 100ms...", send_res);
         app_timer_register(100, sync_window_appear_retry_callback, window);
@@ -950,10 +949,18 @@ static void routine_menu_window_unload(Window *window) {
 
 static void outbox_failed_handler(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox failed: %d", reason);
+  if (s_pending_routine_id_to_activate[0] != '\0') {
+    APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Routine activation failed to transmit, retrying in 500ms...");
+    app_timer_register(500, sync_window_appear_retry_callback, s_sync_window);
+  }
 }
 
 static void outbox_sent_handler(DictionaryIterator *iterator, void *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Outbox sent successfully");
+  if (s_pending_routine_id_to_activate[0] != '\0') {
+    APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Routine activation successfully transmitted to phone. Clearing pending state.");
+    s_pending_routine_id_to_activate[0] = '\0';
+  }
 }
 
 static void init(void) {
@@ -987,7 +994,7 @@ static void init(void) {
   app_message_register_inbox_dropped(inbox_dropped_handler);
   app_message_register_outbox_failed(outbox_failed_handler);
   app_message_register_outbox_sent(outbox_sent_handler);
-  app_message_open(512, 128);
+  app_message_open(2048, 256);
   
   // Display initial waiting window
   window_stack_push(s_sync_window, true);
