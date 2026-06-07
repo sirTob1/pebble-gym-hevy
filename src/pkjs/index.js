@@ -3,6 +3,49 @@
 var syncQueue = [];
 var isSyncing = false;
 
+// Hardcoded key mapping for runtimes like Gadgetbridge (ensuring we don't rely solely on injected globals)
+var myMessageKeys = {
+  "ACTIVE_ROUTINE_ID": 10018,
+  "EXERCISE_INDEX": 10000,
+  "EXERCISE_NAME": 10001,
+  "LOG_EXERCISE_INDEX": 10009,
+  "LOG_REPS": 10011,
+  "LOG_SET_INDEX": 10010,
+  "LOG_STATUS": 10013,
+  "LOG_WEIGHT": 10012,
+  "PREV_REPS": 10007,
+  "PREV_WEIGHT": 10006,
+  "ROUTINE_COUNT": 10014,
+  "ROUTINE_ID": 10016,
+  "ROUTINE_INDEX": 10015,
+  "ROUTINE_NAME": 10017,
+  "SET_COUNT": 10002,
+  "SET_INDEX": 10003,
+  "TARGET_REPS": 10005,
+  "TARGET_WEIGHT": 10004,
+  "WORKOUT_ACTION": 10008
+};
+
+// Helper to duplicate payload keys (both string and integer) to ensure compatibility on Gadgetbridge and other runtimes
+function prepareMessage(msg) {
+  var prepared = {};
+  for (var key in msg) {
+    if (msg.hasOwnProperty(key)) {
+      prepared[key] = msg[key];
+      // Use local mappings
+      var intKey = myMessageKeys[key];
+      if (intKey !== undefined) {
+        prepared[intKey] = msg[key];
+      }
+      // Fallback to global messageKeys if injected
+      if (typeof messageKeys !== 'undefined' && messageKeys[key] !== undefined) {
+        prepared[messageKeys[key]] = msg[key];
+      }
+    }
+  }
+  return prepared;
+}
+
 // Helper: Process the AppMessage queue to avoid message collisions
 function processSyncQueue() {
   if (syncQueue.length === 0) {
@@ -23,7 +66,7 @@ function processSyncQueue() {
 }
 
 function enqueueMessage(msg) {
-  syncQueue.push(msg);
+  syncQueue.push(prepareMessage(msg));
   if (!isSyncing) {
     processSyncQueue();
   }
@@ -99,15 +142,38 @@ function parseHevyRoutine(htmlOrJson) {
 
 // Fetch Hevy routine by URL
 function fetchHevyRoutine(url, onSuccess, onError) {
+  var shortId = null;
+  var match = url.match(/\/routine\/([a-zA-Z0-9]+)/);
+  if (match) {
+    shortId = match[1];
+  } else {
+    var trimmed = url.trim();
+    if (trimmed.length === 11 && /^[a-zA-Z0-9]+$/.test(trimmed)) {
+      shortId = trimmed;
+    }
+  }
+
+  if (!shortId) {
+    onError("Invalid Hevy URL or Routine ID.");
+    return;
+  }
+
+  var apiUrl = "https://api.hevyapp.com/routine_with_short_id/" + shortId;
+  console.log("PebbleGym JS: Fetching routine via API: " + apiUrl);
+
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", url, true);
+  xhr.open("GET", apiUrl, true);
+  xhr.setRequestHeader("x-api-key", "shelobs_hevy_web");
+  xhr.setRequestHeader("Hevy-Platform", "web");
+  xhr.setRequestHeader("Content-Type", "application/json");
+
   xhr.onload = function() {
     if (xhr.status === 200) {
       var routine = parseHevyRoutine(xhr.responseText);
       if (routine) {
         onSuccess(routine);
       } else {
-        onError("Failed to parse routine from page.");
+        onError("Failed to parse routine from response JSON.");
       }
     } else {
       onError("HTTP error " + xhr.status);
@@ -154,8 +220,8 @@ function getExerciseHistory(exerciseName, setIndex) {
   return null;
 }
 
-// Send active routine to watch
-function syncActiveRoutineToWatch() {
+// Send active routine to watch (updates via Hevy link first if auto-reload is enabled)
+function syncActiveRoutineToWatch(clearQueue) {
   var activeRoutineId = localStorage.getItem("active_routine_id");
   if (!activeRoutineId) {
     console.log("PebbleGym JS: No active routine selected.");
@@ -171,7 +237,7 @@ function syncActiveRoutineToWatch() {
   
   var activeRoutine = null;
   for (var i = 0; i < routines.length; i++) {
-    if (routines[i].id === activeRoutineId) {
+    if (routines[i].id == activeRoutineId) {
       activeRoutine = routines[i];
       break;
     }
@@ -181,45 +247,110 @@ function syncActiveRoutineToWatch() {
     console.log("PebbleGym JS: Active routine not found in saved list.");
     return;
   }
+
+  var autoReload = localStorage.getItem("pebble_gym_auto_reload") === "true";
+
+  function transmitRoutine(routine) {
+    console.log("PebbleGym JS: Syncing routine data: " + routine.title);
+    
+    // Clear any pending sync messages unless explicitly requested otherwise
+    if (clearQueue !== false) {
+      syncQueue = [];
+      isSyncing = false;
+    }
+    
+    var isLbs = localStorage.getItem("pebble_gym_unit") === "lbs" ? 1 : 0;
+    var restSec = parseInt(localStorage.getItem("pebble_gym_rest") || "90", 10);
+
+    // 1. Send start action: WORKOUT_ACTION=0, SET_COUNT = exercise count, PREV_REPS = weight unit, PREV_WEIGHT = rest timer duration
+    enqueueMessage({
+      WORKOUT_ACTION: 0,
+      SET_COUNT: routine.exercises.length,
+      PREV_REPS: isLbs,
+      PREV_WEIGHT: restSec
+    });
+    
+    // 2. Send exercises and their sets
+    for (var i = 0; i < routine.exercises.length; i++) {
+      var ex = routine.exercises[i];
+      enqueueMessage({
+        EXERCISE_INDEX: i,
+        EXERCISE_NAME: ex.name.substring(0, 31),
+        SET_COUNT: ex.sets.length
+      });
+      
+      for (var j = 0; j < ex.sets.length; j++) {
+        var s = ex.sets[j];
+        var hist = getExerciseHistory(ex.name, j);
+        enqueueMessage({
+          EXERCISE_INDEX: i,
+          SET_INDEX: j,
+          TARGET_WEIGHT: s.weight,
+          TARGET_REPS: s.reps,
+          PREV_WEIGHT: hist ? hist.weight : 0,
+          PREV_REPS: hist ? hist.reps : 0
+        });
+      }
+    }
+  }
+
+  // Check if we should update from Hevy link first
+  if (autoReload && activeRoutine.hevy_link) {
+    console.log("PebbleGym JS: Auto-reload enabled. Fetching latest routine from Hevy...");
+    fetchHevyRoutine(activeRoutine.hevy_link, function(updatedRoutine) {
+      console.log("PebbleGym JS: Routine updated successfully from Hevy: " + updatedRoutine.title);
+      updatedRoutine.hevy_link = activeRoutine.hevy_link; // Keep the link
+      
+      // Update in saved_routines list
+      for (var i = 0; i < routines.length; i++) {
+        if (routines[i].id == activeRoutineId) {
+          routines[i] = updatedRoutine;
+          break;
+        }
+      }
+      localStorage.setItem("saved_routines", JSON.stringify(routines));
+      transmitRoutine(updatedRoutine);
+    }, function(err) {
+      console.log("PebbleGym JS: Failed to reload routine from Hevy (" + err + "). Syncing cached version.");
+      transmitRoutine(activeRoutine);
+    });
+  } else {
+    transmitRoutine(activeRoutine);
+  }
+}
+
+// Send list of saved routines to the watch
+function sendRoutinesListToWatch() {
+  var routines = [];
+  try {
+    routines = JSON.parse(localStorage.getItem("saved_routines") || "[]");
+  } catch (e) {
+    routines = [];
+  }
   
-  console.log("PebbleGym JS: Syncing routine: " + activeRoutine.title);
+  var activeRoutineId = localStorage.getItem("active_routine_id") || "";
   
-  // Clear any pending sync messages
+  console.log("PebbleGym JS: Sending routines list to watch. Count: " + routines.length);
+  
+  // Clear sync queue to avoid collision
   syncQueue = [];
   isSyncing = false;
   
-  var isLbs = localStorage.getItem("pebble_gym_unit") === "lbs" ? 1 : 0;
-  var restSec = parseInt(localStorage.getItem("pebble_gym_rest") || "90", 10);
-
-  // 1. Send start action: WORKOUT_ACTION=0, SET_COUNT = exercise count, PREV_REPS = weight unit, PREV_WEIGHT = rest timer duration
+  // Send the count and active ID first (prefixed with 'id_' to avoid numeric type coercion by PebbleKit JS)
   enqueueMessage({
-    WORKOUT_ACTION: 0,
-    SET_COUNT: activeRoutine.exercises.length,
-    PREV_REPS: isLbs,
-    PREV_WEIGHT: restSec
+    ROUTINE_COUNT: routines.length,
+    ACTIVE_ROUTINE_ID: "id_" + activeRoutineId
   });
   
-  // 2. Send exercises and their sets
-  for (var i = 0; i < activeRoutine.exercises.length; i++) {
-    var ex = activeRoutine.exercises[i];
+  // Send each routine header
+  for (var i = 0; i < routines.length; i++) {
+    if (i >= 10) break; // Limit to 10 on watch
+    var r = routines[i];
     enqueueMessage({
-      EXERCISE_INDEX: i,
-      EXERCISE_NAME: ex.name.substring(0, 31),
-      SET_COUNT: ex.sets.length
+      ROUTINE_INDEX: i,
+      ROUTINE_ID: "id_" + r.id.toString(),
+      ROUTINE_NAME: r.title.substring(0, 31)
     });
-    
-    for (var j = 0; j < ex.sets.length; j++) {
-      var s = ex.sets[j];
-      var hist = getExerciseHistory(ex.name, j);
-      enqueueMessage({
-        EXERCISE_INDEX: i,
-        SET_INDEX: j,
-        TARGET_WEIGHT: s.weight,
-        TARGET_REPS: s.reps,
-        PREV_WEIGHT: hist ? hist.weight : 0,
-        PREV_REPS: hist ? hist.reps : 0
-      });
-    }
   }
 }
 
@@ -241,8 +372,7 @@ function openConfigPage() {
 // Ready event
 Pebble.addEventListener("ready", function() {
   console.log("PebbleGym JS: Ready!");
-  // If watch requests active routine on start, we can trigger sync
-  // syncActiveRoutineToWatch();
+  sendRoutinesListToWatch();
 });
 
 // Show Configuration
@@ -281,8 +411,10 @@ Pebble.addEventListener("webviewclosed", function(e) {
             }
           }
           if (existingIdx !== -1) {
+            routine.hevy_link = settings.hevy_link;
             saved[existingIdx] = routine;
           } else {
+            routine.hevy_link = settings.hevy_link;
             saved.push(routine);
           }
           localStorage.setItem("saved_routines", JSON.stringify(saved));
@@ -306,23 +438,68 @@ Pebble.addEventListener("webviewclosed", function(e) {
 // Global state to track active workout being logged
 var activeWorkoutLog = null;
 
+// Helper to get dictionary values supporting both string and integer keys (important for Gadgetbridge / older Pebble runtimes)
+function getDictionaryValue(dict, keyName) {
+  if (dict[keyName] !== undefined) {
+    return dict[keyName];
+  }
+  // Try looking up the integer key from our own local map
+  var intKey = myMessageKeys[keyName];
+  if (intKey !== undefined && dict[intKey] !== undefined) {
+    return dict[intKey];
+  }
+  // Fallback to global messageKeys if injected
+  if (typeof messageKeys !== 'undefined' && messageKeys[keyName] !== undefined) {
+    var globalIntKey = messageKeys[keyName];
+    if (dict[globalIntKey] !== undefined) {
+      return dict[globalIntKey];
+    }
+  }
+  return undefined;
+}
+
 // AppMessage listener
 Pebble.addEventListener("appmessage", function(e) {
   var dict = e.payload;
   console.log("PebbleGym JS: Received AppMessage: " + JSON.stringify(dict));
   
+  var workoutAction = getDictionaryValue(dict, "WORKOUT_ACTION");
+  var activeRoutineId = getDictionaryValue(dict, "ACTIVE_ROUTINE_ID");
+  var logExerciseIndex = getDictionaryValue(dict, "LOG_EXERCISE_INDEX");
+  var logSetIndex = getDictionaryValue(dict, "LOG_SET_INDEX");
+  var logReps = getDictionaryValue(dict, "LOG_REPS");
+  var logWeight = getDictionaryValue(dict, "LOG_WEIGHT");
+  var logStatus = getDictionaryValue(dict, "LOG_STATUS");
+  
   // Watch requests workout sync
-  if (dict.WORKOUT_ACTION === 0) {
-    syncActiveRoutineToWatch();
+  if (workoutAction === 0) {
+    sendRoutinesListToWatch();
+    syncActiveRoutineToWatch(false); // Do not clear queue, append workout sync after list sync!
+  }
+  
+  // Watch requests to activate a routine (3 = activate routine)
+  if (workoutAction === 3 && activeRoutineId !== undefined) {
+    var routineId = activeRoutineId;
+    console.log("PebbleGym JS: Watch requested to activate routine: " + routineId);
+    // Strip the 'id_' prefix if present
+    if (routineId.indexOf("id_") === 0) {
+      routineId = routineId.substring(3);
+    }
+    localStorage.setItem("active_routine_id", routineId);
+    
+    // Delay sync by 500ms to allow the watch window pop transition to fully settle and Bluetooth buffer to clear
+    setTimeout(function() {
+      syncActiveRoutineToWatch(true);
+    }, 500);
   }
   
   // Logging individual set
-  if (dict.LOG_EXERCISE_INDEX !== undefined && dict.LOG_SET_INDEX !== undefined) {
-    var exIdx = dict.LOG_EXERCISE_INDEX;
-    var setIdx = dict.LOG_SET_INDEX;
-    var reps = dict.LOG_REPS;
-    var weight = dict.LOG_WEIGHT;
-    var status = dict.LOG_STATUS; // 1 = completed, 0 = skipped
+  if (logExerciseIndex !== undefined && logSetIndex !== undefined) {
+    var exIdx = logExerciseIndex;
+    var setIdx = logSetIndex;
+    var reps = logReps;
+    var weight = logWeight;
+    var status = logStatus; // 1 = completed, 0 = skipped
     
     // Ensure active log exists
     if (!activeWorkoutLog) {
@@ -330,7 +507,7 @@ Pebble.addEventListener("appmessage", function(e) {
       var routines = JSON.parse(localStorage.getItem("saved_routines") || "[]");
       var activeRoutine = null;
       for (var i = 0; i < routines.length; i++) {
-        if (routines[i].id === activeRoutineId) {
+        if (routines[i].id == activeRoutineId) {
           activeRoutine = routines[i];
           break;
         }
@@ -386,7 +563,7 @@ Pebble.addEventListener("appmessage", function(e) {
   }
   
   // Watch actions: FINISH (1) or CANCEL (2)
-  if (dict.WORKOUT_ACTION === 1) {
+  if (workoutAction === 1) {
     if (activeWorkoutLog) {
       // Save to history
       var history = [];
@@ -402,7 +579,7 @@ Pebble.addEventListener("appmessage", function(e) {
       
       activeWorkoutLog = null;
     }
-  } else if (dict.WORKOUT_ACTION === 2) {
+  } else if (workoutAction === 2) {
     console.log("PebbleGym JS: Workout cancelled, discarding log.");
     activeWorkoutLog = null;
   }

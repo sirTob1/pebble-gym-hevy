@@ -29,7 +29,10 @@ echo "Cleaning and running build..."
 rm -rf build
 pebble build
 
-echo "Build succeeded! Copying final PBW file back to host..."
+echo "Build succeeded! Copying final PBW, JS, and header files back to host..."
 mkdir -p /app/build
 cp /root/project/build/*.pbw /app/build/
-echo "Done! The compiled pbw file is in d:/Coding/Anitgravity/build/"
+cp /root/project/build/pebble-js-app.js /app/build/ || true
+cp /root/project/build/include/message_keys.auto.h /app/build/ || true
+cp /root/project/build/js/message_keys.json /app/build/ || true
+echo "Done! The compiled files are in d:/Coding/Anitgravity/pebble-gym-hevy/build/"

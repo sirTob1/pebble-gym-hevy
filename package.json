@@ -1,7 +1,7 @@
 {
   "name": "pebble-gym-hevy",
   "author": "Antigravity",
-  "version": "1.1.0",
+  "version": "1.9.0",
   "keywords": [
     "pebble-app"
   ],
@@ -34,7 +34,12 @@
       "LOG_SET_INDEX",
       "LOG_REPS",
       "LOG_WEIGHT",
-      "LOG_STATUS"
+      "LOG_STATUS",
+      "ROUTINE_COUNT",
+      "ROUTINE_INDEX",
+      "ROUTINE_ID",
+      "ROUTINE_NAME",
+      "ACTIVE_ROUTINE_ID"
     ],
     "resources": {
       "media": []

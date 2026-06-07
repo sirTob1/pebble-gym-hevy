@@ -36,6 +36,17 @@ typedef struct {
 } ExerciseData;
 
 // Global State
+#define MAX_ROUTINES 10
+
+typedef struct {
+  char id[16];
+  char name[32];
+} RoutineHeader;
+
+static RoutineHeader s_routines[MAX_ROUTINES];
+static int s_routine_count = 0;
+static char s_active_routine_id[16] = "";
+
 static ExerciseData s_exercises[MAX_EXERCISES];
 static int s_exercise_count = 0;
 static int s_expected_exercise_count = 0;
@@ -63,6 +74,9 @@ static Layer *s_workout_layer;
 static Window *s_exercise_menu_window;
 static MenuLayer *s_exercise_menu_layer;
 
+static Window *s_routine_menu_window = NULL;
+static MenuLayer *s_routine_menu_layer = NULL;
+
 // Fonts
 static GFont s_title_font;
 static GFont s_main_font;
@@ -75,6 +89,8 @@ static void workout_window_load(Window *window);
 static void workout_window_unload(Window *window);
 static void exercise_menu_window_load(Window *window);
 static void exercise_menu_window_unload(Window *window);
+static void routine_menu_window_load(Window *window);
+static void routine_menu_window_unload(Window *window);
 static void timer_callback(void *data);
 
 // Send set logging data back to phone JS
@@ -162,11 +178,11 @@ static void sync_layer_update_proc(Layer *layer, GContext *ctx) {
                        GRect(10, 20, bounds.size.w - 20, 30),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
-    graphics_draw_text(ctx, "Bitte starte ein Workout in den Handy-Einstellungen...", s_label_font,
-                       GRect(10, bounds.size.h / 2 - 20, bounds.size.w - 20, 60),
+    graphics_draw_text(ctx, "Wähle einen Plan mit SELECT oder starte ein Workout auf dem Handy.", s_label_font,
+                       GRect(10, bounds.size.h / 2 - 30, bounds.size.w - 20, 70),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
-    graphics_draw_text(ctx, "UP: Sync anfordern", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, "SEL: Pläne | UP: Sync anfordern", fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, bounds.size.h - 25, bounds.size.w - 20, 20),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   }
@@ -462,8 +478,15 @@ static void workout_back_click_handler(ClickRecognizerRef recognizer, void *cont
     layer_mark_dirty(s_workout_layer);
     vibes_short_pulse();
   } else {
-    // Pop workout window (closes training screen, returns to sync window)
-    window_stack_pop(true);
+    // Open Quick Exercise Menu to force user to choose Finish or Cancel, or select exercise
+    if (!s_exercise_menu_window) {
+      s_exercise_menu_window = window_create();
+      window_set_window_handlers(s_exercise_menu_window, (WindowHandlers) {
+        .load = exercise_menu_window_load,
+        .unload = exercise_menu_window_unload
+      });
+    }
+    window_stack_push(s_exercise_menu_window, true);
   }
 }
 
@@ -498,6 +521,43 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
       if (rest_t) s_rest_seconds = rest_t->value->uint32;
       
       layer_mark_dirty(s_sync_layer);
+    }
+    return;
+  }
+
+  // 3. Routines List Count & Active ID
+  Tuple *rot_count_t = dict_find(iter, MESSAGE_KEY_ROUTINE_COUNT);
+  if (rot_count_t) {
+    s_routine_count = rot_count_t->value->uint8;
+    if (s_routine_count > MAX_ROUTINES) {
+      s_routine_count = MAX_ROUTINES;
+    }
+    Tuple *active_id_t = dict_find(iter, MESSAGE_KEY_ACTIVE_ROUTINE_ID);
+    if (active_id_t) {
+      snprintf(s_active_routine_id, sizeof(s_active_routine_id), "%s", active_id_t->value->cstring);
+    }
+    // Refresh routine menu layer if open
+    if (s_routine_menu_layer) {
+      menu_layer_reload_data(s_routine_menu_layer);
+    }
+    return;
+  }
+
+  // 4. Routine Chunk Details
+  Tuple *rot_idx_t = dict_find(iter, MESSAGE_KEY_ROUTINE_INDEX);
+  if (rot_idx_t) {
+    uint8_t r_idx = rot_idx_t->value->uint8;
+    if (r_idx < MAX_ROUTINES) {
+      Tuple *r_id_t = dict_find(iter, MESSAGE_KEY_ROUTINE_ID);
+      Tuple *r_name_t = dict_find(iter, MESSAGE_KEY_ROUTINE_NAME);
+      if (r_id_t && r_name_t) {
+        snprintf(s_routines[r_idx].id, sizeof(s_routines[r_idx].id), "%s", r_id_t->value->cstring);
+        snprintf(s_routines[r_idx].name, sizeof(s_routines[r_idx].name), "%s", r_name_t->value->cstring);
+      }
+    }
+    // Refresh routine menu layer if open
+    if (s_routine_menu_layer) {
+      menu_layer_reload_data(s_routine_menu_layer);
     }
     return;
   }
@@ -576,14 +636,27 @@ static void inbox_dropped_handler(AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Inbox dropped: %d", reason);
 }
 
-// Sync Window button clicks (UP to request manual sync)
+// Sync Window button clicks (UP to request manual sync, SELECT to show routines)
 static void sync_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   send_request_sync();
   vibes_short_pulse();
 }
 
+static void sync_select_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (!s_routine_menu_window) {
+    s_routine_menu_window = window_create();
+    window_set_window_handlers(s_routine_menu_window, (WindowHandlers) {
+      .load = routine_menu_window_load,
+      .unload = routine_menu_window_unload
+    });
+  }
+  window_stack_push(s_routine_menu_window, true);
+  vibes_short_pulse();
+}
+
 static void sync_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_UP, sync_up_click_handler);
+  window_single_click_subscribe(BUTTON_ID_SELECT, sync_select_click_handler);
 }
 
 // Window load/unload callbacks
@@ -722,6 +795,79 @@ static void exercise_menu_window_unload(Window *window) {
   menu_layer_destroy(s_exercise_menu_layer);
 }
 
+// Routine Selection Menu callbacks
+static uint16_t routine_menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
+  return s_routine_count == 0 ? 1 : s_routine_count;
+}
+
+static void routine_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
+  if (s_routine_count == 0) {
+    menu_cell_basic_draw(ctx, cell_layer, "Keine Pläne", "Handy-Einstell. prüfen", NULL);
+    return;
+  }
+  
+  int idx = cell_index->row;
+  RoutineHeader *r = &s_routines[idx];
+  bool is_active = (strcmp(r->id, s_active_routine_id) == 0);
+  
+  char subtitle[32];
+  if (is_active) {
+    snprintf(subtitle, sizeof(subtitle), "Aktiv (Ausgewählt)");
+  } else {
+    snprintf(subtitle, sizeof(subtitle), "Klicken zum Starten");
+  }
+  
+  menu_cell_basic_draw(ctx, cell_layer, r->name, subtitle, NULL);
+}
+
+static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
+  if (s_routine_count == 0) return;
+  
+  int idx = cell_index->row;
+  RoutineHeader *r = &s_routines[idx];
+  
+  // Send activate action and routine ID to phone companion FIRST
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+  if (iter) {
+    dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 3); // 3 = ACTIVATE_ROUTINE
+    dict_write_cstring(iter, MESSAGE_KEY_ACTIVE_ROUTINE_ID, r->id);
+    app_message_outbox_send();
+  }
+  
+  // Pop routine list menu to return to sync view
+  window_stack_pop(true);
+  
+  vibes_short_pulse();
+}
+
+static void routine_menu_window_load(Window *window) {
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(window_layer);
+  
+  s_routine_menu_layer = menu_layer_create(bounds);
+  menu_layer_set_callbacks(s_routine_menu_layer, NULL, (MenuLayerCallbacks){
+    .get_num_rows = routine_menu_get_num_rows_callback,
+    .draw_row = routine_menu_draw_row_callback,
+    .select_click = routine_menu_select_callback,
+  });
+  
+  menu_layer_set_click_config_onto_window(s_routine_menu_layer, window);
+  layer_add_child(window_layer, menu_layer_get_layer(s_routine_menu_layer));
+}
+
+static void routine_menu_window_unload(Window *window) {
+  menu_layer_destroy(s_routine_menu_layer);
+}
+
+static void outbox_failed_handler(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox failed: %d", reason);
+}
+
+static void outbox_sent_handler(DictionaryIterator *iterator, void *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Outbox sent successfully");
+}
+
 static void init(void) {
   // Create Fonts
   s_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
@@ -744,6 +890,8 @@ static void init(void) {
   // AppMessage configuration
   app_message_register_inbox_received(inbox_received_handler);
   app_message_register_inbox_dropped(inbox_dropped_handler);
+  app_message_register_outbox_failed(outbox_failed_handler);
+  app_message_register_outbox_sent(outbox_sent_handler);
   app_message_open(512, 128);
   
   // Display initial waiting window
@@ -758,6 +906,9 @@ static void deinit(void) {
   window_destroy(s_workout_window);
   if (s_exercise_menu_window) {
     window_destroy(s_exercise_menu_window);
+  }
+  if (s_routine_menu_window) {
+    window_destroy(s_routine_menu_window);
   }
 }
 

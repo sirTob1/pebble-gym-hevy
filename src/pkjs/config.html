@@ -434,6 +434,10 @@
         <option value="180">180 Sekunden</option>
       </select>
     </div>
+    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
+      <label for="auto-reload" style="margin-bottom: 0; cursor: pointer; flex-grow: 1;">Pläne vor dem Start über Hevy Link aktualisieren</label>
+      <input type="checkbox" id="auto-reload" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);">
+    </div>
   </div>
 </div>
 
@@ -498,6 +502,9 @@
     var storedRest = localStorage.getItem("pebble_gym_rest");
     if (storedRest) restTime = storedRest;
     document.getElementById("rest-time").value = restTime;
+    
+    var autoReload = localStorage.getItem("pebble_gym_auto_reload") === "true";
+    document.getElementById("auto-reload").checked = autoReload;
     
     renderRoutines();
     renderHistory();
@@ -668,12 +675,35 @@
     // Try a direct client-side fetch first. (This might fail due to CORS, which we handle)
     showImportMessage("Versuche Routine direkt abzurufen...", "warning");
     
+    var shortId = null;
+    var match = url.match(/\/routine\/([a-zA-Z0-9]+)/);
+    if (match) {
+      shortId = match[1];
+    } else {
+      var trimmed = url.trim();
+      if (trimmed.length === 11 && /^[a-zA-Z0-9]+$/.test(trimmed)) {
+        shortId = trimmed;
+      }
+    }
+
+    if (!shortId) {
+      showImportMessage("Konnte Routine-ID nicht auslesen.", "error");
+      return;
+    }
+
+    var apiUrl = "https://api.hevyapp.com/routine_with_short_id/" + shortId;
+    
     var xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
+    xhr.open("GET", apiUrl, true);
+    xhr.setRequestHeader("x-api-key", "shelobs_hevy_web");
+    xhr.setRequestHeader("Hevy-Platform", "web");
+    xhr.setRequestHeader("Content-Type", "application/json");
+
     xhr.onload = function() {
       if (xhr.status === 200) {
         var parsed = parseHevyRoutineData(xhr.responseText);
         if (parsed) {
+          parsed.hevy_link = url; // Save the link for auto-updates
           var existingIdx = -1;
           for (var i = 0; i < savedRoutines.length; i++) {
             if (savedRoutines[i].id === parsed.id) {
@@ -705,7 +735,7 @@
 
   function fallbackToJSSync(url) {
     // CORS blocked or fetch failed. We tell the user we'll process it on the phone when saving.
-    showImportMessage("Direkt-Abruf durch CORS geblockt. Der Link wird beim Klicken auf 'Speichern' im Hintergrund über das Smartphone geladen.", "warning");
+    showImportMessage("Der Direkt-Abruf im Web-Browser ist durch CORS eingeschränkt. Der Link wurde als ausstehend gespeichert und wird beim Klick auf 'Speichern & Schließen' im Hintergrund über dein Smartphone geladen!", "warning");
     // Save URL to query later
     document.getElementById("hevy-url").dataset.pendingUrl = url;
   }
@@ -907,9 +937,11 @@
   function saveAndClose() {
     weightUnit = document.getElementById("weight-unit").value;
     restTime = document.getElementById("rest-time").value;
+    var autoReload = document.getElementById("auto-reload").checked;
     
     localStorage.setItem("pebble_gym_unit", weightUnit);
     localStorage.setItem("pebble_gym_rest", restTime);
+    localStorage.setItem("pebble_gym_auto_reload", autoReload ? "true" : "false");
     
     var pendingUrl = document.getElementById("hevy-url").dataset.pendingUrl || "";
     
