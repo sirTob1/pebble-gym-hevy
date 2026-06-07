@@ -229,7 +229,7 @@ function openConfigPage() {
   var history = localStorage.getItem("workout_history") || "[]";
   var activeId = localStorage.getItem("active_routine_id") || "";
   
-  var url = "https://sirtob1.github.io/pebble-gym-hevy/config.html?v=" + Date.now() +
+  var url = "https://sirtob1.github.io/pebble-gym-hevy/src/pkjs/config.html?v=" + Date.now() +
             "&routines=" + encodeURIComponent(routines) +
             "&history=" + encodeURIComponent(history) +
             "&active_id=" + encodeURIComponent(activeId);
