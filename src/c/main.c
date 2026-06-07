@@ -67,6 +67,9 @@ static int s_current_exercise_idx = 0;
 static int s_current_set_idx = 0;
 
 static bool s_workout_in_progress = false;
+#if defined(PBL_HEALTH)
+static int s_current_heart_rate = 0;
+#endif
 static int s_weight_unit = UNIT_KG;
 static int s_rest_seconds = 90;
 static int s_rest_seconds_left = 0;
@@ -265,6 +268,18 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   graphics_draw_text(ctx, set_idx_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
                      GRect(10, header_h + 4, bounds.size.w - 20, 18),
                      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+                     
+  #if defined(PBL_HEALTH)
+  // Draw Heart Rate on the right side if available
+  if (s_current_heart_rate > 0) {
+    static char hr_buf[12];
+    snprintf(hr_buf, sizeof(hr_buf), "%d bpm", s_current_heart_rate);
+    graphics_context_set_text_color(ctx, GColorRed);
+    graphics_draw_text(ctx, hr_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                       GRect(bounds.size.w - 60, header_h + 4, 52, 18),
+                       GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+  }
+  #endif
                      
   // Draw Target values (e.g. "10 x 82.5 kg")
   static char target_buf[32];
@@ -700,6 +715,16 @@ static void sync_window_unload(Window *window) {
   layer_destroy(s_sync_layer);
 }
 
+#if defined(PBL_HEALTH)
+static void health_handler(HealthEventType event, void *context) {
+  if (event == HealthEventHeartRateUpdate) {
+    HealthValue val = health_service_peek_current_value(HealthMetricHeartRateBPM);
+    s_current_heart_rate = (int)val;
+    layer_mark_dirty(s_workout_layer);
+  }
+}
+#endif
+
 static void workout_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
@@ -709,9 +734,22 @@ static void workout_window_load(Window *window) {
   layer_add_child(window_layer, s_workout_layer);
   
   window_set_click_config_provider(window, workout_click_config_provider);
+
+  #if defined(PBL_HEALTH)
+  s_current_heart_rate = 0;
+  health_service_events_subscribe(health_handler, NULL);
+  health_service_set_heart_rate_sample_period(1);
+  s_current_heart_rate = (int)health_service_peek_current_value(HealthMetricHeartRateBPM);
+  #endif
 }
 
 static void workout_window_unload(Window *window) {
+  #if defined(PBL_HEALTH)
+  health_service_events_unsubscribe();
+  health_service_set_heart_rate_sample_period(0);
+  s_current_heart_rate = 0;
+  #endif
+
   layer_destroy(s_workout_layer);
   s_workout_in_progress = false;
   s_expected_exercise_count = 0;
