@@ -70,6 +70,7 @@ static bool s_workout_in_progress = false;
 #if defined(PBL_HEALTH)
 static int s_current_heart_rate = 0;
 #endif
+static bool s_pending_active_routine_sync = false;
 static int s_weight_unit = UNIT_KG;
 static int s_rest_seconds = 90;
 static int s_rest_seconds_left = 0;
@@ -140,6 +141,34 @@ static void send_request_sync() {
   if (iter) {
     dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 0); // 0 = SYNC/REQUEST
     app_message_outbox_send();
+  }
+}
+
+static int s_details_retry_count = 0;
+
+static void send_request_active_routine_details();
+
+static void send_request_active_routine_details_timer_callback(void *data) {
+  send_request_active_routine_details();
+}
+
+// Request active routine details from phone companion
+static void send_request_active_routine_details() {
+  DictionaryIterator *iter;
+  AppMessageResult result = app_message_outbox_begin(&iter);
+  if (result == APP_MSG_OK && iter) {
+    s_details_retry_count = 0;
+    dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 4); // 4 = REQUEST_ACTIVE_ROUTINE_DETAILS
+    app_message_outbox_send();
+  } else {
+    if (s_details_retry_count < 10) {
+      s_details_retry_count++;
+      APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Outbox busy (%d), retry %d/10 in 100ms...", result, s_details_retry_count);
+      app_timer_register(100, send_request_active_routine_details_timer_callback, NULL);
+    } else {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox busy, max retries reached. Action failed.");
+      s_details_retry_count = 0;
+    }
   }
 }
 
@@ -715,6 +744,13 @@ static void sync_window_unload(Window *window) {
   layer_destroy(s_sync_layer);
 }
 
+static void sync_window_appear(Window *window) {
+  if (s_pending_active_routine_sync) {
+    s_pending_active_routine_sync = false;
+    send_request_active_routine_details();
+  }
+}
+
 #if defined(PBL_HEALTH)
 static void health_handler(HealthEventType event, void *context) {
   if (event == HealthEventHeartRateUpdate) {
@@ -900,6 +936,7 @@ static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
       APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Outbox send failed: %d", result);
     } else {
       APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Outbox send success for routine: %s", r->id);
+      s_pending_active_routine_sync = true;
     }
   }
   
@@ -952,7 +989,8 @@ static void init(void) {
   s_sync_window = window_create();
   window_set_window_handlers(s_sync_window, (WindowHandlers) {
     .load = sync_window_load,
-    .unload = sync_window_unload
+    .unload = sync_window_unload,
+    .appear = sync_window_appear
   });
   
   s_workout_window = window_create();

@@ -499,11 +499,12 @@ Pebble.addEventListener("appmessage", function(e) {
       routineId = routineId.substring(3);
     }
     localStorage.setItem("active_routine_id", routineId);
-    
-    // Delay sync by 500ms to allow the watch window pop transition to fully settle and Bluetooth buffer to clear
-    setTimeout(function() {
-      syncActiveRoutineToWatch(true);
-    }, 500);
+  }
+  
+  // Watch requests active routine details (4 = request active routine details)
+  if (workoutAction === 4) {
+    console.log("PebbleGym JS: Watch requested active routine details.");
+    syncActiveRoutineToWatch(true);
   }
   
   // Logging individual set
