@@ -488,7 +488,6 @@ Pebble.addEventListener("appmessage", function(e) {
   // Watch requests workout sync
   if (workoutAction === 0) {
     sendRoutinesListToWatch();
-    syncActiveRoutineToWatch(false); // Do not clear queue, append workout sync after list sync!
   }
   
   // Watch requests to activate a routine (3 = activate routine)
