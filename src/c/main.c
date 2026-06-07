@@ -7,6 +7,19 @@
 #define UNIT_KG 0
 #define UNIT_LBS 1
 
+// Language configurations
+typedef enum {
+  LANG_DE = 0,
+  LANG_EN = 1
+} AppLanguage;
+
+#define PERSIST_KEY_LANGUAGE 100
+static AppLanguage s_language = LANG_DE;
+
+static const char* translate(const char* de, const char* en) {
+  return (s_language == LANG_EN) ? en : de;
+}
+
 // Edit modes
 typedef enum {
   EDIT_NONE = 0,
@@ -167,7 +180,7 @@ static void sync_layer_update_proc(Layer *layer, GContext *ctx) {
     // Syncing in progress
     static char sync_buf[48];
     int progress = (s_exercise_count * 100) / s_expected_exercise_count;
-    snprintf(sync_buf, sizeof(sync_buf), "Lade Plan...\n%d%%", progress);
+    snprintf(sync_buf, sizeof(sync_buf), translate("Lade Plan...\n%d%%", "Loading Routine...\n%d%%"), progress);
     
     graphics_draw_text(ctx, sync_buf, s_main_font,
                        GRect(10, bounds.size.h / 2 - 30, bounds.size.w - 20, 60),
@@ -178,11 +191,11 @@ static void sync_layer_update_proc(Layer *layer, GContext *ctx) {
                        GRect(10, 20, bounds.size.w - 20, 30),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
-    graphics_draw_text(ctx, "Wähle einen Plan mit SELECT oder starte ein Workout auf dem Handy.", s_label_font,
+    graphics_draw_text(ctx, translate("Wähle einen Plan mit SELECT oder starte ein Workout auf dem Handy.", "Select a routine with SELECT or start a workout on your phone."), s_label_font,
                        GRect(10, bounds.size.h / 2 - 30, bounds.size.w - 20, 70),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
-    graphics_draw_text(ctx, "SEL: Pläne | UP: Sync anfordern", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, translate("SEL: Pläne | UP: Sync anfordern", "SEL: Routines | UP: Request Sync"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, bounds.size.h - 25, bounds.size.w - 20, 20),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   }
@@ -217,7 +230,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   // 2. Edit Mode drawing overlay
   if (s_edit_mode != EDIT_NONE) {
     graphics_context_set_text_color(ctx, GColorYellow);
-    char *edit_title = (s_edit_mode == EDIT_WEIGHT) ? "GEWICHT ÄNDERN" : "WIEDERHOLUNGEN";
+    const char *edit_title = (s_edit_mode == EDIT_WEIGHT) ? translate("GEWICHT ÄNDERN", "EDIT WEIGHT") : translate("WIEDERHOLUNGEN", "REPETITIONS");
     graphics_draw_text(ctx, edit_title, s_label_font,
                        GRect(10, header_h + 10, bounds.size.w - 20, 20),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -226,7 +239,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     if (s_edit_mode == EDIT_WEIGHT) {
       format_weight(val_buf, sizeof(val_buf), s_edit_weight, s_weight_unit);
     } else {
-      snprintf(val_buf, sizeof(val_buf), "%d Reps", s_edit_reps);
+      snprintf(val_buf, sizeof(val_buf), translate("%d Wdh.", "%d Reps"), s_edit_reps);
     }
     
     graphics_context_set_text_color(ctx, GColorWhite);
@@ -235,10 +248,10 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
     graphics_context_set_text_color(ctx, GColorLightGray);
-    graphics_draw_text(ctx, "UP/DN: Wert | SEL: Sichern", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, translate("UP/DN: Wert | SEL: Sichern", "UP/DN: Value | SEL: Save"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, bounds.size.h - 32, bounds.size.w - 20, 16),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-    graphics_draw_text(ctx, "BACK: Abbrechen", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, translate("BACK: Abbrechen", "BACK: Cancel"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, bounds.size.h - 18, bounds.size.w - 20, 16),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
     return;
@@ -247,7 +260,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   // 3. Normal Mode drawing
   // Draw Set Indices (e.g. "Satz 2 von 4")
   static char set_idx_buf[24];
-  snprintf(set_idx_buf, sizeof(set_idx_buf), "Satz %d von %d", s_current_set_idx + 1, active_ex->set_count);
+  snprintf(set_idx_buf, sizeof(set_idx_buf), translate("Satz %d von %d", "Set %d of %d"), s_current_set_idx + 1, active_ex->set_count);
   graphics_context_set_text_color(ctx, GColorLightGray);
   graphics_draw_text(ctx, set_idx_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
                      GRect(10, header_h + 4, bounds.size.w - 20, 18),
@@ -269,7 +282,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     static char prev_buf[48];
     static char prev_weight_str[16];
     format_weight(prev_weight_str, sizeof(prev_weight_str), active_set->prev_weight, s_weight_unit);
-    snprintf(prev_buf, sizeof(prev_buf), "Letztes Mal: %d x %s", active_set->prev_reps, prev_weight_str);
+    snprintf(prev_buf, sizeof(prev_buf), translate("Letztes Mal: %d x %s", "Last time: %d x %s"), active_set->prev_reps, prev_weight_str);
     
     graphics_context_set_text_color(ctx, GColorLightGray);
     graphics_draw_text(ctx, prev_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14),
@@ -323,7 +336,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     
     // Timer Text
     static char timer_buf[24];
-    snprintf(timer_buf, sizeof(timer_buf), "PAUSE: %d s", s_rest_seconds_left);
+    snprintf(timer_buf, sizeof(timer_buf), translate("PAUSE: %d s", "REST: %d s"), s_rest_seconds_left);
     graphics_context_set_text_color(ctx, GColorCyan);
     graphics_draw_text(ctx, timer_buf, s_label_font,
                        GRect(10, timer_y + 10, bounds.size.w - 20, 24),
@@ -331,16 +344,16 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
                        
     // Hint to dismiss timer
     graphics_context_set_text_color(ctx, GColorDarkGray);
-    graphics_draw_text(ctx, "BACK: Pause überspringen", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, translate("BACK: Pause überspringen", "BACK: Skip Rest"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, timer_y + 26, bounds.size.w - 20, 14),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   } else {
     // Normal instructions footer
     graphics_context_set_text_color(ctx, GColorLightGray);
-    graphics_draw_text(ctx, "SEL (Halten): Log Satz | SEL: Übungen", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, translate("SEL (Halten): Log Satz | SEL: Übungen", "SEL (Hold): Log Set | SEL: Exercises"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(6, bounds.size.h - 30, bounds.size.w - 12, 14),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-    graphics_draw_text(ctx, "UP/DN (Halten): Ändern Wds./Gew.", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    graphics_draw_text(ctx, translate("UP/DN (Halten): Ändern Wds./Gew.", "UP/DN (Hold): Edit Reps/Weight"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(6, bounds.size.h - 16, bounds.size.w - 12, 14),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   }
@@ -504,6 +517,18 @@ static void workout_click_config_provider(void *context) {
 
 // AppMessage inbox handler
 static void inbox_received_handler(DictionaryIterator *iter, void *context) {
+  // Check for language update
+  Tuple *lang_t = dict_find(iter, MESSAGE_KEY_LANGUAGE);
+  if (lang_t) {
+    s_language = lang_t->value->uint8;
+    persist_write_int(PERSIST_KEY_LANGUAGE, s_language);
+    // Redraw UI with new language
+    if (s_sync_layer) layer_mark_dirty(s_sync_layer);
+    if (s_workout_layer) layer_mark_dirty(s_workout_layer);
+    if (s_routine_menu_layer) menu_layer_reload_data(s_routine_menu_layer);
+    if (s_exercise_menu_layer) menu_layer_reload_data(s_exercise_menu_layer);
+  }
+
   // 1. Sync start action: WORKOUT_ACTION=0
   Tuple *action_tuple = dict_find(iter, MESSAGE_KEY_WORKOUT_ACTION);
   if (action_tuple && action_tuple->value->uint8 == 0) {
@@ -722,15 +747,15 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
     }
     
     static char sub_buf[28];
-    snprintf(sub_buf, sizeof(sub_buf), "%d Sätze (%d fertig)", ex->set_count, completed_sets);
+    snprintf(sub_buf, sizeof(sub_buf), translate("%d Sätze (%d fertig)", "%d sets (%d done)"), ex->set_count, completed_sets);
     
     menu_cell_basic_draw(ctx, cell_layer, ex->name, sub_buf, NULL);
   } else if (idx == s_exercise_count) {
     // Action item: Finish Workout
-    menu_cell_basic_draw(ctx, cell_layer, "Workout BEENDEN", "Abschließen & speichern", NULL);
+    menu_cell_basic_draw(ctx, cell_layer, translate("Workout BEENDEN", "FINISH Workout"), translate("Abschließen & speichern", "Finish & save"), NULL);
   } else if (idx == s_exercise_count + 1) {
     // Action item: Cancel Workout
-    menu_cell_basic_draw(ctx, cell_layer, "Abbrechen", "Verwerfen", NULL);
+    menu_cell_basic_draw(ctx, cell_layer, translate("Abbrechen", "Cancel"), translate("Verwerfen", "Discard"), NULL);
   }
 }
 
@@ -802,7 +827,7 @@ static uint16_t routine_menu_get_num_rows_callback(MenuLayer *menu_layer, uint16
 
 static void routine_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
   if (s_routine_count == 0) {
-    menu_cell_basic_draw(ctx, cell_layer, "Keine Pläne", "Handy-Einstell. prüfen", NULL);
+    menu_cell_basic_draw(ctx, cell_layer, translate("Keine Pläne", "No routines"), translate("Handy-Einstell. prüfen", "Check phone settings"), NULL);
     return;
   }
   
@@ -812,9 +837,9 @@ static void routine_menu_draw_row_callback(GContext* ctx, const Layer *cell_laye
   
   char subtitle[32];
   if (is_active) {
-    snprintf(subtitle, sizeof(subtitle), "Aktiv (Ausgewählt)");
+    snprintf(subtitle, sizeof(subtitle), "%s", translate("Aktiv (Ausgewählt)", "Active (Selected)"));
   } else {
-    snprintf(subtitle, sizeof(subtitle), "Klicken zum Starten");
+    snprintf(subtitle, sizeof(subtitle), "%s", translate("Klicken zum Starten", "Click to start"));
   }
   
   menu_cell_basic_draw(ctx, cell_layer, r->name, subtitle, NULL);
@@ -869,6 +894,12 @@ static void outbox_sent_handler(DictionaryIterator *iterator, void *context) {
 }
 
 static void init(void) {
+  if (persist_exists(PERSIST_KEY_LANGUAGE)) {
+    s_language = persist_read_int(PERSIST_KEY_LANGUAGE);
+  } else {
+    s_language = LANG_DE;
+  }
+
   // Create Fonts
   s_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
   s_main_font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);

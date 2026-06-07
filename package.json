@@ -39,7 +39,8 @@
       "ROUTINE_INDEX",
       "ROUTINE_ID",
       "ROUTINE_NAME",
-      "ACTIVE_ROUTINE_ID"
+      "ACTIVE_ROUTINE_ID",
+      "LANGUAGE"
     ],
     "resources": {
       "media": []

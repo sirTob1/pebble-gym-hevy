@@ -359,34 +359,34 @@
 <div class="container">
   <header>
     <h1>PebbleGym</h1>
-    <p>Hevy Workout Companion & History</p>
+    <p id="brand-subtitle">Hevy Workout Companion & History</p>
   </header>
 
   <!-- Section 1: Routine Import -->
   <div class="card">
-    <div class="card-title">Routine importieren</div>
+    <div class="card-title" id="title-import">Routine importieren</div>
     
     <div class="tab-container">
-      <button class="tab-btn active" onclick="switchImportTab('tab-url')">Hevy Link</button>
-      <button class="tab-btn" onclick="switchImportTab('tab-raw')">Raw Text / JSON</button>
+      <button class="tab-btn active" id="tab-url-btn" onclick="switchImportTab('tab-url')">Hevy Link</button>
+      <button class="tab-btn" id="tab-raw-btn" onclick="switchImportTab('tab-raw')">Raw Text / JSON</button>
     </div>
 
     <!-- Tab A: URL Input -->
     <div id="tab-url" class="tab-content active">
       <div class="form-group">
-        <label for="hevy-url">Hevy Routine URL</label>
+        <label for="hevy-url" id="label-hevy-url">Hevy Routine URL</label>
         <input type="text" id="hevy-url" placeholder="https://hevy.com/routine/..." oninput="clearImportMessage()">
       </div>
-      <button class="btn" style="margin-top: 10px;" onclick="loadHevyUrl()">Laden & Speichern</button>
+      <button class="btn" id="btn-load-hevy" style="margin-top: 10px;" onclick="loadHevyUrl()">Laden & Speichern</button>
     </div>
 
     <!-- Tab B: Raw Input -->
     <div id="tab-raw" class="tab-content">
       <div class="form-group">
-        <label for="raw-data">HTML oder JSON Inhalt einfügen</label>
+        <label for="raw-data" id="label-raw-data">HTML oder JSON Inhalt einfügen</label>
         <textarea id="raw-data" rows="5" placeholder="Füge den XML/HTML Quelltext der Hevy Seite oder den exportierten JSON-Inhalt hier ein..." oninput="previewRawData()"></textarea>
       </div>
-      <button class="btn" style="margin-top: 10px;" onclick="importRawData()">Importieren</button>
+      <button class="btn" id="btn-import-raw" style="margin-top: 10px;" onclick="importRawData()">Importieren</button>
     </div>
 
     <div id="import-status" class="status-msg"></div>
@@ -399,7 +399,7 @@
 
   <!-- Section 2: Saved Routines -->
   <div class="card">
-    <div class="card-title">Meine Routinen</div>
+    <div class="card-title" id="title-my-routines">Meine Routinen</div>
     <div id="routines-list"></div>
     <div id="no-routines-text" style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 10px 0;">Keine Routinen geladen. Bitte importiere eine Routine oben.</div>
   </div>
@@ -407,35 +407,42 @@
   <!-- Section 3: History -->
   <div class="card">
     <div class="card-title">
-      <span>Trainingsverlauf</span>
-      <button class="list-btn" style="font-size: 11px; padding: 4px 8px;" onclick="exportHistoryCSV()">CSV Export</button>
+      <span id="title-history">Trainingsverlauf</span>
+      <button class="list-btn" id="btn-export-csv" style="font-size: 11px; padding: 4px 8px;" onclick="exportHistoryCSV()">CSV Export</button>
     </div>
     <div id="history-list"></div>
     <div id="no-history-text" style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 10px 0;">Noch keine aufgezeichneten Workouts vorhanden.</div>
-    <button class="btn btn-secondary btn-danger" style="margin-top: 15px; padding: 8px; font-size: 13px;" onclick="clearAllHistory()">Verlauf leeren</button>
+    <button class="btn btn-secondary btn-danger" id="btn-clear-history" style="margin-top: 15px; padding: 8px; font-size: 13px;" onclick="clearAllHistory()">Verlauf leeren</button>
   </div>
 
   <!-- Section 4: Settings -->
   <div class="card">
-    <div class="card-title">Einstellungen</div>
+    <div class="card-title" id="title-settings">Einstellungen</div>
     <div class="form-group">
-      <label for="weight-unit">Gewichtseinheit</label>
-      <select id="weight-unit">
-        <option value="kg" selected>Kilogramm (kg)</option>
-        <option value="lbs">Pfund (lbs)</option>
+      <label for="language-select" id="label-language-select">Sprache / Language</label>
+      <select id="language-select" onchange="changeLanguage()">
+        <option value="de">Deutsch</option>
+        <option value="en">English</option>
       </select>
     </div>
     <div class="form-group">
-      <label for="rest-time">Standard Pausenzeit</label>
+      <label for="weight-unit" id="label-weight-unit">Gewichtseinheit</label>
+      <select id="weight-unit">
+        <option value="kg" id="weight-unit-kg" selected>Kilogramm (kg)</option>
+        <option value="lbs" id="weight-unit-lbs">Pfund (lbs)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="rest-time" id="label-rest-time">Standard Pausenzeit</label>
       <select id="rest-time">
-        <option value="60">60 Sekunden</option>
-        <option value="90" selected>90 Sekunden</option>
-        <option value="120">120 Sekunden</option>
-        <option value="180">180 Sekunden</option>
+        <option value="60" id="rest-60">60 Sekunden</option>
+        <option value="90" id="rest-90" selected>90 Sekunden</option>
+        <option value="120" id="rest-120">120 Sekunden</option>
+        <option value="180" id="rest-180">180 Sekunden</option>
       </select>
     </div>
     <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
-      <label for="auto-reload" style="margin-bottom: 0; cursor: pointer; flex-grow: 1;">Pläne vor dem Start über Hevy Link aktualisieren</label>
+      <label for="auto-reload" id="label-auto-reload" style="margin-bottom: 0; cursor: pointer; flex-grow: 1;">Pläne vor dem Start über Hevy Link aktualisieren</label>
       <input type="checkbox" id="auto-reload" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);">
     </div>
   </div>
@@ -450,10 +457,166 @@
 <script>
   // Global State parsed from URL query parameters
   var savedRoutines = [];
+  // Global State parsed from URL query parameters
+  var savedRoutines = [];
   var workoutHistory = [];
   var activeRoutineId = "";
   var weightUnit = "kg";
   var restTime = "90";
+  var language = "de";
+  
+  var translations = {
+    de: {
+      "brand-subtitle": "Hevy Trainingspartner & Verlauf",
+      "title-import": "Routine importieren",
+      "tab-url-btn": "Hevy Link",
+      "tab-raw-btn": "Rohtext / JSON",
+      "label-hevy-url": "Hevy Routine URL",
+      "btn-load-hevy": "Laden & Speichern",
+      "label-raw-data": "HTML oder JSON Inhalt einfügen",
+      "placeholder-raw-data": "Füge den XML/HTML Quelltext der Hevy Seite oder den exportierten JSON-Inhalt hier ein...",
+      "btn-import-raw": "Importieren",
+      "preview-title-text": "Vorschau",
+      "title-my-routines": "Meine Routinen",
+      "no-routines-text": "Keine Routinen geladen. Bitte importiere eine Routine oben.",
+      "title-history": "Trainingsverlauf",
+      "btn-export-csv": "CSV Export",
+      "no-history-text": "Noch keine aufgezeichneten Workouts vorhanden.",
+      "btn-clear-history": "Verlauf leeren",
+      "title-settings": "Einstellungen",
+      "label-language-select": "Sprache / Language",
+      "label-weight-unit": "Gewichtseinheit",
+      "weight-unit-kg": "Kilogramm (kg)",
+      "weight-unit-lbs": "Pfund (lbs)",
+      "label-rest-time": "Standard Pausenzeit",
+      "rest-60": "60 Sekunden",
+      "rest-90": "90 Sekunden",
+      "rest-120": "120 Sekunden",
+      "rest-180": "180 Sekunden",
+      "label-auto-reload": "Pläne vor dem Start über Hevy Link aktualisieren",
+      "save-btn": "Speichern & Schließen",
+      // Option translations:
+      "confirm-delete-routine": "Routine '{title}' wirklich löschen?",
+      "confirm-delete-history-item": "Diesen Verlaufseintrag wirklich löschen?",
+      "confirm-clear-history": "Bist du sicher, dass du deinen gesamten Trainingsverlauf unwiderruflich löschen willst?",
+      "alert-no-history": "Kein Trainingsverlauf zum Exportieren vorhanden.",
+      "status-enter-url": "Bitte gib eine Hevy-Routine-URL ein.",
+      "status-direct-fetch": "Versuche Routine direkt abzurufen...",
+      "status-invalid-url": "Ungültige Hevy-Routine-URL. Format: https://hevy.com/routine/[id]",
+      "status-id-error": "Konnte Routine-ID nicht auslesen.",
+      "status-load-success": "Routine '{title}' erfolgreich geladen!",
+      "status-import-success": "Routine '{title}' erfolgreich importiert!",
+      "status-update-success": "Routine '{title}' erfolgreich aktualisiert!",
+      "status-fetch-failed": "Der Direkt-Abruf im Web-Browser ist durch CORS eingeschränkt. Der Link wurde als ausstehend gespeichert und wird beim Klick auf 'Speichern & Schließen' im Hintergrund über dein Smartphone geladen!",
+      "status-paste-first": "Bitte füge zuerst den Inhalt ein.",
+      "status-parse-error": "Konnte keine Routine-Daten finden. Überprüfe den kopierten Text.",
+      "meta-exercises": "{count} Übungen",
+      "active-btn-active": "Aktiv",
+      "active-btn-activate": "Aktivieren",
+      "delete-btn-delete": "Löschen",
+      "remove-btn-remove": "Entfernen",
+      "history-meta-sets": "Sätze",
+      "history-meta-done": "fertig",
+      "preview-title-prefix": "Vorschau: ",
+      "routine-header-csv": "Datum,Routine,Uebung,Satz,Wiederholungen,Gewicht (kg)\n"
+    },
+    en: {
+      "brand-subtitle": "Hevy Workout Companion & History",
+      "title-import": "Import Routine",
+      "tab-url-btn": "Hevy Link",
+      "tab-raw-btn": "Raw Text / JSON",
+      "label-hevy-url": "Hevy Routine URL",
+      "btn-load-hevy": "Load & Save",
+      "label-raw-data": "Paste HTML or JSON Content",
+      "placeholder-raw-data": "Paste the XML/HTML source text of the Hevy page or the exported JSON content here...",
+      "btn-import-raw": "Import",
+      "preview-title-text": "Preview",
+      "title-my-routines": "My Routines",
+      "no-routines-text": "No routines loaded. Please import a routine above.",
+      "title-history": "Workout History",
+      "btn-export-csv": "CSV Export",
+      "no-history-text": "No recorded workouts available yet.",
+      "btn-clear-history": "Clear History",
+      "title-settings": "Settings",
+      "label-language-select": "Language / Sprache",
+      "label-weight-unit": "Weight Unit",
+      "weight-unit-kg": "Kilograms (kg)",
+      "weight-unit-lbs": "Pounds (lbs)",
+      "label-rest-time": "Default Rest Time",
+      "rest-60": "60 Seconds",
+      "rest-90": "90 Seconds",
+      "rest-120": "120 Seconds",
+      "rest-180": "180 Seconds",
+      "label-auto-reload": "Update routines via Hevy link before starting",
+      "save-btn": "Save & Close",
+      // Option translations:
+      "confirm-delete-routine": "Really delete routine '{title}'?",
+      "confirm-delete-history-item": "Really delete this history entry?",
+      "confirm-clear-history": "Are you sure you want to permanently delete your entire workout history?",
+      "alert-no-history": "No workout history available to export.",
+      "status-enter-url": "Please enter a Hevy routine URL.",
+      "status-direct-fetch": "Attempting to fetch routine directly...",
+      "status-invalid-url": "Invalid Hevy routine URL. Format: https://hevy.com/routine/[id]",
+      "status-id-error": "Could not read routine ID.",
+      "status-load-success": "Routine '{title}' successfully loaded!",
+      "status-import-success": "Routine '{title}' successfully imported!",
+      "status-update-success": "Routine '{title}' successfully updated!",
+      "status-fetch-failed": "Direct fetch in browser is restricted by CORS. The link was saved as pending and will be loaded in the background via your smartphone when clicking 'Save & Close'!",
+      "status-paste-first": "Please paste content first.",
+      "status-parse-error": "Could not find routine data. Check the copied text.",
+      "meta-exercises": "{count} exercises",
+      "active-btn-active": "Active",
+      "active-btn-activate": "Activate",
+      "delete-btn-delete": "Delete",
+      "remove-btn-remove": "Remove",
+      "history-meta-sets": "sets",
+      "history-meta-done": "done",
+      "preview-title-prefix": "Preview: ",
+      "routine-header-csv": "Date,Routine,Exercise,Set,Reps,Weight (kg)\n"
+    }
+  };
+
+  function t(key, replacements) {
+    var text = translations[language][key] || translations["de"][key] || "";
+    if (replacements) {
+      for (var repKey in replacements) {
+        text = text.replace("{" + repKey + "}", replacements[repKey]);
+      }
+    }
+    return text;
+  }
+
+  function changeLanguage() {
+    language = document.getElementById("language-select").value;
+    updatePageLanguage();
+  }
+
+  function updatePageLanguage() {
+    var ids = [
+      "brand-subtitle", "title-import", "tab-url-btn", "tab-raw-btn", "label-hevy-url", "btn-load-hevy",
+      "label-raw-data", "btn-import-raw", "preview-title-text", "title-my-routines",
+      "no-routines-text", "title-history", "btn-export-csv", "no-history-text",
+      "btn-clear-history", "title-settings", "label-language-select", "label-weight-unit",
+      "weight-unit-kg", "weight-unit-lbs", "label-rest-time", "rest-60", "rest-90", "rest-120",
+      "rest-180", "label-auto-reload", "save-btn"
+    ];
+    ids.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.textContent = t(id);
+      }
+    });
+    
+    // Placeholder
+    var rawData = document.getElementById("raw-data");
+    if (rawData) {
+      rawData.placeholder = t("placeholder-raw-data");
+    }
+    
+    // Rerender lists to apply language change to dynamic elements
+    renderRoutines();
+    renderHistory();
+  }
   
   // Parse Query Parameters
   function getQueryParam(name) {
@@ -495,6 +658,19 @@
     }
     
     // Load local options from localStorage or query if sent
+    var storedLanguage = localStorage.getItem("pebble_gym_language");
+    if (storedLanguage) {
+      language = storedLanguage;
+    } else {
+      var navLang = navigator.language || navigator.userLanguage;
+      if (navLang && navLang.substring(0, 2) === "en") {
+        language = "en";
+      } else {
+        language = "de";
+      }
+    }
+    document.getElementById("language-select").value = language;
+    
     var storedUnit = localStorage.getItem("pebble_gym_unit");
     if (storedUnit) weightUnit = storedUnit;
     document.getElementById("weight-unit").value = weightUnit;
@@ -506,8 +682,7 @@
     var autoReload = localStorage.getItem("pebble_gym_auto_reload") === "true";
     document.getElementById("auto-reload").checked = autoReload;
     
-    renderRoutines();
-    renderHistory();
+    updatePageLanguage();
   }
 
   // Switch between tabs
@@ -592,7 +767,7 @@
   function importRawData() {
     var rawText = document.getElementById("raw-data").value.trim();
     if (!rawText) {
-      showImportMessage("Bitte füge zuerst den Inhalt ein.", "error");
+      showImportMessage(t("status-paste-first"), "error");
       return;
     }
     
@@ -609,18 +784,18 @@
       
       if (existingIdx !== -1) {
         savedRoutines[existingIdx] = parsed;
-        showImportMessage("Routine '" + parsed.title + "' erfolgreich aktualisiert!", "success");
+        showImportMessage(t("status-update-success", {title: parsed.title}), "success");
       } else {
         savedRoutines.push(parsed);
         activeRoutineId = parsed.id; // Auto select
-        showImportMessage("Routine '" + parsed.title + "' erfolgreich importiert!", "success");
+        showImportMessage(t("status-import-success", {title: parsed.title}), "success");
       }
       
       document.getElementById("raw-data").value = "";
       document.getElementById("preview-box").style.display = "none";
       renderRoutines();
     } else {
-      showImportMessage("Konnte keine Routine-Daten finden. Überprüfe den kopierten Text.", "error");
+      showImportMessage(t("status-parse-error"), "error");
     }
   }
 
@@ -638,12 +813,12 @@
     var parsed = parseHevyRoutineData(rawText);
     if (parsed) {
       previewBox.style.display = "block";
-      document.getElementById("preview-title-text").innerText = "Vorschau: " + parsed.title;
+      document.getElementById("preview-title-text").innerText = t("preview-title-prefix") + parsed.title;
       
       var html = "";
       parsed.exercises.forEach(function(ex) {
         html += "<div class='preview-exercise'>";
-        html += "<strong>" + ex.name + "</strong> (" + ex.sets.length + " Sätze)<br>";
+        html += "<strong>" + ex.name + "</strong> (" + ex.sets.length + " " + t("history-meta-sets") + ")<br>";
         var setStrings = ex.sets.map(function(s) {
           return s.reps + "x " + (s.weight / 100) + " kg";
         });
@@ -657,23 +832,20 @@
   }
 
   // Trigger loading via Hevy URL
-  // Note: Due to CORS, direct client-side fetching of hevy.com may fail.
-  // We notify the user that if it fails, we will pass the URL to PebbleKit JS on save to fetch it,
-  // or they can use the Raw Tab.
   function loadHevyUrl() {
     var url = document.getElementById("hevy-url").value.trim();
     if (!url) {
-      showImportMessage("Bitte gib eine Hevy-Routine-URL ein.", "error");
+      showImportMessage(t("status-enter-url"), "error");
       return;
     }
     
     if (url.indexOf("hevy.com/routine/") === -1 && url.indexOf("link.hevy.com/routine/") === -1) {
-      showImportMessage("Ungültige Hevy-Routine-URL. Format: https://hevy.com/routine/[id]", "error");
+      showImportMessage(t("status-invalid-url"), "error");
       return;
     }
 
-    // Try a direct client-side fetch first. (This might fail due to CORS, which we handle)
-    showImportMessage("Versuche Routine direkt abzurufen...", "warning");
+    // Try a direct client-side fetch first. (This might fail due to CORS)
+    showImportMessage(t("status-direct-fetch"), "warning");
     
     var shortId = null;
     var match = url.match(/\/routine\/([a-zA-Z0-9]+)/);
@@ -687,7 +859,7 @@
     }
 
     if (!shortId) {
-      showImportMessage("Konnte Routine-ID nicht auslesen.", "error");
+      showImportMessage(t("status-id-error"), "error");
       return;
     }
 
@@ -717,7 +889,7 @@
             savedRoutines.push(parsed);
             activeRoutineId = parsed.id;
           }
-          showImportMessage("Routine '" + parsed.title + "' erfolgreich geladen!", "success");
+          showImportMessage(t("status-load-success", {title: parsed.title}), "success");
           document.getElementById("hevy-url").value = "";
           renderRoutines();
         } else {
@@ -734,8 +906,7 @@
   }
 
   function fallbackToJSSync(url) {
-    // CORS blocked or fetch failed. We tell the user we'll process it on the phone when saving.
-    showImportMessage("Der Direkt-Abruf im Web-Browser ist durch CORS eingeschränkt. Der Link wurde als ausstehend gespeichert und wird beim Klick auf 'Speichern & Schließen' im Hintergrund über dein Smartphone geladen!", "warning");
+    showImportMessage(t("status-fetch-failed"), "warning");
     // Save URL to query later
     document.getElementById("hevy-url").dataset.pendingUrl = url;
   }
@@ -777,7 +948,7 @@
       
       var meta = document.createElement("div");
       meta.className = "list-item-meta";
-      meta.innerText = routine.exercises.length + " Übungen";
+      meta.innerText = t("meta-exercises", {count: routine.exercises.length});
       
       info.appendChild(title);
       info.appendChild(meta);
@@ -788,7 +959,7 @@
       var isActive = (routine.id === activeRoutineId);
       var actBtn = document.createElement("button");
       actBtn.className = "list-btn" + (isActive ? " active" : "");
-      actBtn.innerText = isActive ? "Aktiv" : "Aktivieren";
+      actBtn.innerText = isActive ? t("active-btn-active") : t("active-btn-activate");
       actBtn.onclick = function() {
         activeRoutineId = routine.id;
         renderRoutines();
@@ -797,9 +968,9 @@
       
       var delBtn = document.createElement("button");
       delBtn.className = "list-btn danger";
-      delBtn.innerText = "Löschen";
+      delBtn.innerText = t("delete-btn-delete");
       delBtn.onclick = function() {
-        if (confirm("Routine '" + routine.title + "' wirklich löschen?")) {
+        if (confirm(t("confirm-delete-routine", {title: routine.title}))) {
           savedRoutines = savedRoutines.filter(function(r) { return r.id !== routine.id; });
           if (activeRoutineId === routine.id) {
             activeRoutineId = savedRoutines.length > 0 ? savedRoutines[0].id : "";
@@ -853,7 +1024,7 @@
         ex.sets.forEach(function(s) {
           if (s && s.status === 1) completedSets++;
         });
-        exerciseStrings.push(ex.name + " (" + completedSets + " Sätze)");
+        exerciseStrings.push(ex.name + " (" + completedSets + " " + t("history-meta-sets") + ")");
       });
       meta.innerText = exerciseStrings.join(", ");
       
@@ -865,12 +1036,12 @@
       
       var delBtn = document.createElement("button");
       delBtn.className = "list-btn danger";
-      delBtn.innerText = "Entfernen";
+      delBtn.innerText = t("remove-btn-remove");
       
       // IIFE to capture current loop index
       (function(idx) {
         delBtn.onclick = function() {
-          if (confirm("Diesen Verlaufseintrag wirklich löschen?")) {
+          if (confirm(t("confirm-delete-history-item"))) {
             workoutHistory.splice(idx, 1);
             renderHistory();
           }
@@ -887,7 +1058,7 @@
 
   // Delete all history
   function clearAllHistory() {
-    if (confirm("Bist du sicher, dass du deinen gesamten Trainingsverlauf unwiderruflich löschen willst?")) {
+    if (confirm(t("confirm-clear-history"))) {
       workoutHistory = [];
       renderHistory();
     }
@@ -896,12 +1067,12 @@
   // Export History to CSV
   function exportHistoryCSV() {
     if (workoutHistory.length === 0) {
-      alert("Kein Trainingsverlauf zum Exportieren vorhanden.");
+      alert(t("alert-no-history"));
       return;
     }
     
     var csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Datum,Routine,Uebung,Satz,Wiederholungen,Gewicht (kg)\n";
+    csvContent += t("routine-header-csv");
     
     workoutHistory.forEach(function(w) {
       var dateStr = new Date(w.timestamp).toISOString();
@@ -937,10 +1108,12 @@
   function saveAndClose() {
     weightUnit = document.getElementById("weight-unit").value;
     restTime = document.getElementById("rest-time").value;
+    language = document.getElementById("language-select").value;
     var autoReload = document.getElementById("auto-reload").checked;
     
     localStorage.setItem("pebble_gym_unit", weightUnit);
     localStorage.setItem("pebble_gym_rest", restTime);
+    localStorage.setItem("pebble_gym_language", language);
     localStorage.setItem("pebble_gym_auto_reload", autoReload ? "true" : "false");
     
     var pendingUrl = document.getElementById("hevy-url").dataset.pendingUrl || "";
@@ -949,7 +1122,8 @@
       saved_routines: savedRoutines,
       active_routine_id: activeRoutineId,
       workout_history: workoutHistory,
-      hevy_link: pendingUrl
+      hevy_link: pendingUrl,
+      language: language
     };
     
     var responseStr = encodeURIComponent(JSON.stringify(response));

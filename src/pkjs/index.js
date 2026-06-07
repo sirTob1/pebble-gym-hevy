@@ -8,6 +8,7 @@ var myMessageKeys = {
   "ACTIVE_ROUTINE_ID": 10018,
   "EXERCISE_INDEX": 10000,
   "EXERCISE_NAME": 10001,
+  "LANGUAGE": 10019,
   "LOG_EXERCISE_INDEX": 10009,
   "LOG_REPS": 10011,
   "LOG_SET_INDEX": 10010,
@@ -261,13 +262,16 @@ function syncActiveRoutineToWatch(clearQueue) {
     
     var isLbs = localStorage.getItem("pebble_gym_unit") === "lbs" ? 1 : 0;
     var restSec = parseInt(localStorage.getItem("pebble_gym_rest") || "90", 10);
+    var activeLanguage = localStorage.getItem("pebble_gym_language") || "de";
+    var langCode = (activeLanguage === "en") ? 1 : 0;
 
-    // 1. Send start action: WORKOUT_ACTION=0, SET_COUNT = exercise count, PREV_REPS = weight unit, PREV_WEIGHT = rest timer duration
+    // 1. Send start action: WORKOUT_ACTION=0, SET_COUNT = exercise count, PREV_REPS = weight unit, PREV_WEIGHT = rest timer duration, LANGUAGE = langCode
     enqueueMessage({
       WORKOUT_ACTION: 0,
       SET_COUNT: routine.exercises.length,
       PREV_REPS: isLbs,
-      PREV_WEIGHT: restSec
+      PREV_WEIGHT: restSec,
+      LANGUAGE: langCode
     });
     
     // 2. Send exercises and their sets
@@ -329,6 +333,8 @@ function sendRoutinesListToWatch() {
   }
   
   var activeRoutineId = localStorage.getItem("active_routine_id") || "";
+  var activeLanguage = localStorage.getItem("pebble_gym_language") || "de";
+  var langCode = (activeLanguage === "en") ? 1 : 0;
   
   console.log("PebbleGym JS: Sending routines list to watch. Count: " + routines.length);
   
@@ -336,10 +342,11 @@ function sendRoutinesListToWatch() {
   syncQueue = [];
   isSyncing = false;
   
-  // Send the count and active ID first (prefixed with 'id_' to avoid numeric type coercion by PebbleKit JS)
+  // Send the count, active ID, and language first (active ID prefixed with 'id_' to avoid numeric type coercion by PebbleKit JS)
   enqueueMessage({
     ROUTINE_COUNT: routines.length,
-    ACTIVE_ROUTINE_ID: "id_" + activeRoutineId
+    ACTIVE_ROUTINE_ID: "id_" + activeRoutineId,
+    LANGUAGE: langCode
   });
   
   // Send each routine header
@@ -396,6 +403,9 @@ Pebble.addEventListener("webviewclosed", function(e) {
       if (settings.workout_history) {
         localStorage.setItem("workout_history", JSON.stringify(settings.workout_history));
       }
+      if (settings.language !== undefined) {
+        localStorage.setItem("pebble_gym_language", settings.language);
+      }
       
       // Handle background fetching of Hevy Link if provided
       if (settings.hevy_link) {
@@ -426,8 +436,12 @@ Pebble.addEventListener("webviewclosed", function(e) {
           console.log("PebbleGym JS: Background scrape failed: " + err);
         });
       } else {
-        // Immediately sync active routine to watch
-        syncActiveRoutineToWatch();
+        // Immediately sync active routine or routines list to watch
+        if (localStorage.getItem("active_routine_id")) {
+          syncActiveRoutineToWatch();
+        } else {
+          sendRoutinesListToWatch();
+        }
       }
     } catch (err) {
       console.log("PebbleGym JS: Error parsing webview response: " + err);
