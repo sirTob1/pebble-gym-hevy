@@ -918,7 +918,6 @@
         showImportMessage(t("status-update-success", {title: parsed.title}), "success");
       } else {
         savedRoutines.push(parsed);
-        activeRoutineId = parsed.id; // Auto select
         showImportMessage(t("status-import-success", {title: parsed.title}), "success");
       }
       
@@ -1021,7 +1020,6 @@
             savedRoutines[existingIdx] = parsed;
           } else {
             savedRoutines.push(parsed);
-            activeRoutineId = parsed.id;
           }
           showImportMessage(t("status-load-success", {title: parsed.title}), "success");
           document.getElementById("hevy-url").value = "";
@@ -1095,7 +1093,11 @@
       actBtn.className = "list-btn" + (isActive ? " active" : "");
       actBtn.innerText = isActive ? t("active-btn-active") : t("active-btn-activate");
       actBtn.onclick = function() {
-        activeRoutineId = routine.id;
+        if (activeRoutineId === routine.id) {
+          activeRoutineId = "";
+        } else {
+          activeRoutineId = routine.id;
+        }
         renderRoutines();
       };
       actions.appendChild(actBtn);
@@ -1115,7 +1117,7 @@
         if (confirm(t("confirm-delete-routine", {title: routine.title}))) {
           savedRoutines = savedRoutines.filter(function(r) { return r.id !== routine.id; });
           if (activeRoutineId === routine.id) {
-            activeRoutineId = savedRoutines.length > 0 ? savedRoutines[0].id : "";
+            activeRoutineId = "";
           }
           renderRoutines();
         }

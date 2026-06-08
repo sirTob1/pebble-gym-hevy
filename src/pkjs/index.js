@@ -453,10 +453,11 @@ Pebble.addEventListener("webviewclosed", function(e) {
             saved.push(routine);
           }
           localStorage.setItem("saved_routines", JSON.stringify(saved));
-          localStorage.setItem("active_routine_id", routine.id);
-          
-          // Sync new routine to watch
-          syncActiveRoutineToWatch();
+          if (localStorage.getItem("active_routine_id") === routine.id) {
+            syncActiveRoutineToWatch();
+          } else {
+            sendRoutinesListToWatch();
+          }
         }, function(err) {
           console.log("PebbleGym JS: Background scrape failed: " + err);
         });
