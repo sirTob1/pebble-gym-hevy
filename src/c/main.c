@@ -14,7 +14,9 @@ typedef enum {
 } AppLanguage;
 
 #define PERSIST_KEY_LANGUAGE 100
+#define PERSIST_KEY_SHOW_BUTTON_HINTS 101
 static AppLanguage s_language = LANG_DE;
+static bool s_show_button_hints = true;
 
 static const char* translate(const char* de, const char* en) {
   return (s_language == LANG_EN) ? en : de;
@@ -350,29 +352,92 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   }
   #endif
                       
-  // Draw Target values (e.g. "10 x 82.5 kg" or "05:00")
-  static char target_buf[32];
+  // Determine layout geometry based on whether helper hints are shown
+  int content_y_offset = s_show_button_hints ? 0 : 8;
+  int reps_val_y = header_h + 12 + content_y_offset;
+  int reps_lbl_y = header_h + 52 + content_y_offset;
+  int divider_y1 = header_h + 16 + content_y_offset;
+  int divider_y2 = header_h + 50 + content_y_offset;
+  int prev_stats_y = header_h + 74 + content_y_offset * 1.5;
+  int progress_dot_y = header_h + 96 + content_y_offset * 2.2;
+  
+  // Custom font size for large numbers
+  GFont numbers_font = fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS);
+  GFont labels_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+  
+  GColor text_color;
+  if (active_set->is_timed && s_active_set_timer) {
+    text_color = GColorRed; // Red/running state
+  } else {
+    text_color = active_set->completed ? GColorDarkGreen : GColorBlack;
+  }
+  graphics_context_set_text_color(ctx, text_color);
+  
   if (active_set->is_timed) {
+    // 1. Draw Centered Timed Exercises Layout
+    static char timer_buf[24];
     int display_seconds = (s_active_timer_seconds_left > 0 || s_active_set_timer) ? s_active_timer_seconds_left : active_set->target_duration;
     int mins = display_seconds / 60;
     int secs = display_seconds % 60;
-    snprintf(target_buf, sizeof(target_buf), "%02d:%02d", mins, secs);
+    snprintf(timer_buf, sizeof(timer_buf), "%02d:%02d", mins, secs);
+    
+    // Draw centered timer
+    graphics_draw_text(ctx, timer_buf, numbers_font,
+                       GRect(10, reps_val_y, bounds.size.w - 20, 42),
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+                       
+    // Draw label below
+    graphics_context_set_text_color(ctx, GColorDarkGray);
+    graphics_draw_text(ctx, translate("DAUER", "TIMER"), labels_font,
+                       GRect(10, reps_lbl_y, bounds.size.w - 20, 14),
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   } else {
-    static char weight_str[16];
-    format_weight(weight_str, sizeof(weight_str), active_set->weight, s_weight_unit);
-    snprintf(target_buf, sizeof(target_buf), "%d x %s", active_set->reps, weight_str);
+    // 2. Draw Side-by-Side Dashboard Layout (Reps & Weight)
+    
+    // Left Column: Reps
+    static char reps_buf[12];
+    snprintf(reps_buf, sizeof(reps_buf), "%d", active_set->reps);
+    graphics_draw_text(ctx, reps_buf, numbers_font,
+                       GRect(0, reps_val_y, (bounds.size.w / 2) - 2, 42),
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+                       
+    graphics_context_set_text_color(ctx, GColorDarkGray);
+    graphics_draw_text(ctx, translate("WDH.", "REPS"), labels_font,
+                       GRect(0, reps_lbl_y, (bounds.size.w / 2) - 2, 14),
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+                       
+    // Right Column: Weight
+    static char weight_val_buf[16];
+    int whole = active_set->weight / 100;
+    int fraction = active_set->weight % 100;
+    if (fraction == 0) {
+      snprintf(weight_val_buf, sizeof(weight_val_buf), "%d", whole);
+    } else {
+      if (fraction % 10 == 0) {
+        snprintf(weight_val_buf, sizeof(weight_val_buf), "%d.%d", whole, fraction / 10);
+      } else {
+        snprintf(weight_val_buf, sizeof(weight_val_buf), "%d.%02d", whole, fraction);
+      }
+    }
+    
+    graphics_context_set_text_color(ctx, text_color);
+    graphics_draw_text(ctx, weight_val_buf, numbers_font,
+                       GRect((bounds.size.w / 2) + 2, reps_val_y, (bounds.size.w / 2) - 2, 42),
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+                       
+    graphics_context_set_text_color(ctx, GColorDarkGray);
+    const char *unit_label = (s_weight_unit == UNIT_LBS) ? "lbs" : "kg";
+    graphics_draw_text(ctx, unit_label, labels_font,
+                       GRect((bounds.size.w / 2) + 2, reps_lbl_y, (bounds.size.w / 2) - 2, 14),
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+                       
+    // Draw vertical divider line
+    graphics_context_set_stroke_color(ctx, GColorDarkGray);
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_draw_line(ctx, GPoint(bounds.size.w / 2, divider_y1), GPoint(bounds.size.w / 2, divider_y2));
   }
   
-  if (active_set->is_timed && s_active_set_timer) {
-    graphics_context_set_text_color(ctx, GColorRed); // Red/running state
-  } else {
-    graphics_context_set_text_color(ctx, active_set->completed ? GColorDarkGreen : GColorBlack);
-  }
-  graphics_draw_text(ctx, target_buf, s_main_font,
-                     GRect(10, header_h + 20, bounds.size.w - 20, 36),
-                     GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-                     
-  // Draw Previous Stats (e.g. "Letztes Mal: 10 x 75 kg")
+  // 3. Draw Previous Stats (e.g. "Letztes Mal: 10 x 75 kg")
   if (active_set->prev_reps > 0 && !active_set->is_timed) {
     static char prev_buf[48];
     static char prev_weight_str[16];
@@ -380,42 +445,43 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     snprintf(prev_buf, sizeof(prev_buf), translate("Letztes Mal: %d x %s", "Last time: %d x %s"), active_set->prev_reps, prev_weight_str);
     
     graphics_context_set_text_color(ctx, GColorDarkGray);
-    graphics_draw_text(ctx, prev_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                       GRect(10, header_h + 54, bounds.size.w - 20, 18),
+    graphics_draw_text(ctx, prev_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                       GRect(10, prev_stats_y, bounds.size.w - 20, 18),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   }
   
-  // Draw Progress dots
-  int dot_r = 5;
-  int gap = 8;
+  // 4. Draw Progress dots (larger and spaced out)
+  int dot_r = 7;
+  int gap = 9;
   int total_dots_w = (active_ex->set_count * (dot_r * 2)) + ((active_ex->set_count - 1) * gap);
   int start_x = (bounds.size.w - total_dots_w) / 2;
-  int dot_y = header_h + 76;
   
   for (int d = 0; d < active_ex->set_count; d++) {
     int cx = start_x + d * (dot_r * 2 + gap) + dot_r;
-    graphics_context_set_stroke_width(ctx, 1);
     
     if (d == s_current_set_idx) {
+      graphics_context_set_stroke_width(ctx, 2);
       graphics_context_set_stroke_color(ctx, GColorCobaltBlue);
-      graphics_draw_circle(ctx, GPoint(cx, dot_y), dot_r + 2);
+      graphics_draw_circle(ctx, GPoint(cx, progress_dot_y), dot_r + 2);
+    } else {
+      graphics_context_set_stroke_width(ctx, 1);
     }
     
     if (active_ex->sets[d].completed) {
       graphics_context_set_fill_color(ctx, GColorDarkGreen);
-      graphics_fill_circle(ctx, GPoint(cx, dot_y), dot_r);
+      graphics_fill_circle(ctx, GPoint(cx, progress_dot_y), dot_r);
     } else if (active_ex->sets[d].skipped) {
       graphics_context_set_fill_color(ctx, GColorRed);
-      graphics_fill_circle(ctx, GPoint(cx, dot_y), dot_r);
+      graphics_fill_circle(ctx, GPoint(cx, progress_dot_y), dot_r);
     } else {
       graphics_context_set_stroke_color(ctx, GColorDarkGray);
-      graphics_draw_circle(ctx, GPoint(cx, dot_y), dot_r);
+      graphics_draw_circle(ctx, GPoint(cx, progress_dot_y), dot_r);
     }
   }
 
-  // Draw Rest Timer Overlay if active (Issue #10)
+  // 5. Draw Rest Timer Overlay if active
   if (s_rest_seconds_left > 0) {
-    int timer_h = 75; // Increased height
+    int timer_h = 75;
     int timer_y = bounds.size.h - timer_h;
     
     // Background bar: Solid white to hide background elements
@@ -440,7 +506,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     graphics_draw_text(ctx, translate("BACK: Pause überspringen", "BACK: Skip Rest"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, timer_y + 44, bounds.size.w - 20, 16),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-  } else {
+  } else if (s_show_button_hints) {
     // Normal instructions footer
     graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, translate("SEL (Halten): Log Satz | SEL: Übungen", "SEL (Hold): Log Set | SEL: Exercises"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
@@ -673,6 +739,15 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     if (s_workout_layer) layer_mark_dirty(s_workout_layer);
     if (s_routine_menu_layer) menu_layer_reload_data(s_routine_menu_layer);
     if (s_exercise_menu_layer) menu_layer_reload_data(s_exercise_menu_layer);
+  }
+  
+  // Check for show button hints update
+  Tuple *hints_t = dict_find(iter, MESSAGE_KEY_SHOW_BUTTON_HINTS);
+  if (hints_t) {
+    s_show_button_hints = hints_t->value->uint8 == 1;
+    persist_write_bool(PERSIST_KEY_SHOW_BUTTON_HINTS, s_show_button_hints);
+    // Redraw UI
+    if (s_workout_layer) layer_mark_dirty(s_workout_layer);
   }
 
   // 1. Sync start action: WORKOUT_ACTION=0
@@ -1096,6 +1171,12 @@ static void init(void) {
     s_language = persist_read_int(PERSIST_KEY_LANGUAGE);
   } else {
     s_language = LANG_DE;
+  }
+  
+  if (persist_exists(PERSIST_KEY_SHOW_BUTTON_HINTS)) {
+    s_show_button_hints = persist_read_bool(PERSIST_KEY_SHOW_BUTTON_HINTS);
+  } else {
+    s_show_button_hints = true;
   }
 
   // Create Fonts

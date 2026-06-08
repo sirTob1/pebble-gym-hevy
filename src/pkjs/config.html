@@ -540,6 +540,10 @@
       <label for="auto-reload" id="label-auto-reload" style="margin-bottom: 0; cursor: pointer; flex-grow: 1;">Pläne vor dem Start über Hevy Link aktualisieren</label>
       <input type="checkbox" id="auto-reload" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);">
     </div>
+    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
+      <label for="show-hints" id="label-show-hints" style="margin-bottom: 0; cursor: pointer; flex-grow: 1;">Tastenhilfe auf der Uhr anzeigen</label>
+      <input type="checkbox" id="show-hints" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);">
+    </div>
   </div>
 </div>
 
@@ -589,6 +593,7 @@
       "rest-120": "120 Sekunden",
       "rest-180": "180 Sekunden",
       "label-auto-reload": "Pläne vor dem Start über Hevy Link aktualisieren",
+      "label-show-hints": "Tastenhilfe auf der Uhr anzeigen",
       "save-btn": "Speichern & Schließen",
       // Option translations:
       "confirm-delete-routine": "Routine '{title}' wirklich löschen?",
@@ -653,6 +658,7 @@
       "rest-120": "120 Seconds",
       "rest-180": "180 Seconds",
       "label-auto-reload": "Update routines via Hevy link before starting",
+      "label-show-hints": "Show Button Hints on Watch",
       "save-btn": "Save & Close",
       // Option translations:
       "confirm-delete-routine": "Really delete routine '{title}'?",
@@ -713,7 +719,7 @@
       "no-routines-text", "title-history", "btn-export-csv", "no-history-text",
       "btn-clear-history", "title-settings", "label-language-select", "label-weight-unit",
       "weight-unit-kg", "weight-unit-lbs", "label-rest-time", "rest-60", "rest-90", "rest-120",
-      "rest-180", "label-auto-reload", "save-btn",
+      "rest-180", "label-auto-reload", "label-show-hints", "save-btn",
       "editor-title-text", "label-edit-routine-title", "btn-editor-save", "btn-editor-cancel"
     ];
     ids.forEach(function(id) {
@@ -800,6 +806,9 @@
     
     var autoReload = localStorage.getItem("pebble_gym_auto_reload") === "true";
     document.getElementById("auto-reload").checked = autoReload;
+    
+    var showHints = localStorage.getItem("pebble_gym_show_hints") !== "false";
+    document.getElementById("show-hints").checked = showHints;
     
     updatePageLanguage();
   }
@@ -1452,11 +1461,13 @@
     restTime = document.getElementById("rest-time").value;
     language = document.getElementById("language-select").value;
     var autoReload = document.getElementById("auto-reload").checked;
+    var showHints = document.getElementById("show-hints").checked;
     
     localStorage.setItem("pebble_gym_unit", weightUnit);
     localStorage.setItem("pebble_gym_rest", restTime);
     localStorage.setItem("pebble_gym_language", language);
     localStorage.setItem("pebble_gym_auto_reload", autoReload ? "true" : "false");
+    localStorage.setItem("pebble_gym_show_hints", showHints ? "true" : "false");
     
     var pendingUrl = document.getElementById("hevy-url").dataset.pendingUrl || "";
     
@@ -1468,7 +1479,8 @@
       language: language,
       weight_unit: weightUnit,
       rest_time: restTime,
-      auto_reload: autoReload ? "true" : "false"
+      auto_reload: autoReload ? "true" : "false",
+      show_button_hints: showHints ? "true" : "false"
     };
     
     var responseStr = encodeURIComponent(JSON.stringify(response));

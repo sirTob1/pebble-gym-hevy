@@ -26,7 +26,8 @@ var myMessageKeys = {
   "TARGET_WEIGHT": 10004,
   "WORKOUT_ACTION": 10008,
   "IS_TIMED": 10020,
-  "TARGET_DURATION": 10021
+  "TARGET_DURATION": 10021,
+  "SHOW_BUTTON_HINTS": 10022
 };
 
 // Helper to duplicate payload keys (both string and integer) to ensure compatibility on Gadgetbridge and other runtimes
@@ -269,6 +270,7 @@ function syncActiveRoutineToWatch(clearQueue) {
     var restSec = parseInt(localStorage.getItem("pebble_gym_rest") || "90", 10);
     var activeLanguage = localStorage.getItem("pebble_gym_language") || "de";
     var langCode = (activeLanguage === "en") ? 1 : 0;
+    var showHints = localStorage.getItem("pebble_gym_show_hints") !== "false" ? 1 : 0;
 
     // 1. Send start action: WORKOUT_ACTION=0, SET_COUNT = exercise count, PREV_REPS = weight unit, PREV_WEIGHT = rest timer duration, LANGUAGE = langCode
     enqueueMessage({
@@ -276,7 +278,8 @@ function syncActiveRoutineToWatch(clearQueue) {
       SET_COUNT: routine.exercises.length,
       PREV_REPS: isLbs,
       PREV_WEIGHT: restSec,
-      LANGUAGE: langCode
+      LANGUAGE: langCode,
+      SHOW_BUTTON_HINTS: showHints
     });
     
     // 2. Send exercises and their sets
@@ -342,6 +345,7 @@ function sendRoutinesListToWatch() {
   var activeRoutineId = localStorage.getItem("active_routine_id") || "";
   var activeLanguage = localStorage.getItem("pebble_gym_language") || "de";
   var langCode = (activeLanguage === "en") ? 1 : 0;
+  var showHints = localStorage.getItem("pebble_gym_show_hints") !== "false" ? 1 : 0;
   
   console.log("PebbleGym JS: Sending routines list to watch. Count: " + routines.length);
   
@@ -353,7 +357,8 @@ function sendRoutinesListToWatch() {
   enqueueMessage({
     ROUTINE_COUNT: routines.length,
     ACTIVE_ROUTINE_ID: "id_" + activeRoutineId,
-    LANGUAGE: langCode
+    LANGUAGE: langCode,
+    SHOW_BUTTON_HINTS: showHints
   });
   
   // Send each routine header
@@ -422,6 +427,9 @@ Pebble.addEventListener("webviewclosed", function(e) {
       }
       if (settings.auto_reload !== undefined) {
         localStorage.setItem("pebble_gym_auto_reload", settings.auto_reload);
+      }
+      if (settings.show_button_hints !== undefined) {
+        localStorage.setItem("pebble_gym_show_hints", settings.show_button_hints);
       }
       
       // Handle background fetching of Hevy Link if provided
