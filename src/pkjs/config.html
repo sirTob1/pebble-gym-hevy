@@ -1465,7 +1465,10 @@
       active_routine_id: activeRoutineId,
       workout_history: workoutHistory,
       hevy_link: pendingUrl,
-      language: language
+      language: language,
+      weight_unit: weightUnit,
+      rest_time: restTime,
+      auto_reload: autoReload ? "true" : "false"
     };
     
     var responseStr = encodeURIComponent(JSON.stringify(response));

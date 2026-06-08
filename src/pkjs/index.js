@@ -414,6 +414,15 @@ Pebble.addEventListener("webviewclosed", function(e) {
       if (settings.language !== undefined) {
         localStorage.setItem("pebble_gym_language", settings.language);
       }
+      if (settings.weight_unit !== undefined) {
+        localStorage.setItem("pebble_gym_unit", settings.weight_unit);
+      }
+      if (settings.rest_time !== undefined) {
+        localStorage.setItem("pebble_gym_rest", settings.rest_time);
+      }
+      if (settings.auto_reload !== undefined) {
+        localStorage.setItem("pebble_gym_auto_reload", settings.auto_reload);
+      }
       
       // Handle background fetching of Hevy Link if provided
       if (settings.hevy_link) {
