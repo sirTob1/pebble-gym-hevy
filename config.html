@@ -1122,7 +1122,13 @@
   var editingRoutine = null;
 
   function openRoutineEditor(routineId) {
-    var routine = savedRoutines.find(function(r) { return r.id === routineId; });
+    var routine = null;
+    for (var i = 0; i < savedRoutines.length; i++) {
+      if (savedRoutines[i].id === routineId) {
+        routine = savedRoutines[i];
+        break;
+      }
+    }
     if (!routine) return;
     
     // Deep clone the routine so changes can be canceled
@@ -1307,7 +1313,13 @@
     editingRoutine.title = title;
     
     // Update in savedRoutines array
-    var routineIdx = savedRoutines.findIndex(function(r) { return r.id === editingRoutine.id; });
+    var routineIdx = -1;
+    for (var i = 0; i < savedRoutines.length; i++) {
+      if (savedRoutines[i].id === editingRoutine.id) {
+        routineIdx = i;
+        break;
+      }
+    }
     if (routineIdx !== -1) {
       savedRoutines[routineIdx] = editingRoutine;
     }

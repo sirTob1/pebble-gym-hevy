@@ -352,6 +352,79 @@
       padding-bottom: 0;
       margin: 0;
     }
+
+    /* Editor Styles */
+    .editor-container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--accent);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .editor-exercise {
+      background-color: #0e0e15;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .editor-exercise-title {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .editor-exercise-title input[type="text"] {
+      padding: 6px;
+      font-size: 13px;
+    }
+    .editor-set-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      background-color: #08080c;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .editor-set-row label {
+      font-size: 12px;
+      margin-bottom: 0;
+      color: var(--text-muted);
+      display: inline;
+    }
+    .editor-set-row input[type="number"] {
+      background-color: #08080c;
+      border: 1px solid var(--card-border);
+      color: var(--text-color);
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      width: 55px;
+      font-family: inherit;
+    }
+    .editor-set-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+    .editor-set-row .set-delete-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+    .editor-set-inputs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-grow: 1;
+    }
   </style>
 </head>
 <body>
@@ -402,6 +475,28 @@
     <div class="card-title" id="title-my-routines">Meine Routinen</div>
     <div id="routines-list"></div>
     <div id="no-routines-text" style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 10px 0;">Keine Routinen geladen. Bitte importiere eine Routine oben.</div>
+  </div>
+
+  <!-- Section 2B: Routine Editor (Hidden by default) -->
+  <div id="routine-editor" class="editor-container" style="display: none;">
+    <div class="card-title">
+      <span id="editor-title-text">Routine bearbeiten</span>
+      <button class="list-btn danger" style="padding: 4px 8px; font-weight: bold;" onclick="closeRoutineEditor()">X</button>
+    </div>
+    
+    <div class="form-group">
+      <label for="edit-routine-title" id="label-edit-routine-title">Routine Name</label>
+      <input type="text" id="edit-routine-title" placeholder="Routine Name">
+    </div>
+    
+    <div id="editor-exercises-container">
+      <!-- Dynamic list of exercises & sets will be rendered here -->
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button class="btn" id="btn-editor-save" onclick="saveRoutineEdits()">Speichern</button>
+      <button class="btn btn-secondary" id="btn-editor-cancel" onclick="closeRoutineEditor()">Abbrechen</button>
+    </div>
   </div>
 
   <!-- Section 3: History -->
@@ -518,7 +613,17 @@
       "history-meta-sets": "Sätze",
       "history-meta-done": "fertig",
       "preview-title-prefix": "Vorschau: ",
-      "routine-header-csv": "Datum,Routine,Uebung,Satz,Wiederholungen,Gewicht (kg)\n"
+      "routine-header-csv": "Datum,Routine,Uebung,Satz,Wiederholungen,Gewicht (kg)\n",
+      "editor-title-text": "Routine bearbeiten",
+      "label-edit-routine-title": "Routine Name",
+      "btn-editor-save": "Speichern",
+      "btn-editor-cancel": "Abbrechen",
+      "edit-btn-edit": "Bearbeiten",
+      "editor-label-reps": "Wdh.",
+      "editor-label-weight": "Gewicht",
+      "editor-label-timer": "Timer",
+      "editor-label-duration": "Dauer (s)",
+      "editor-btn-add-set": "Satz hinzufügen"
     },
     en: {
       "brand-subtitle": "Hevy Workout Companion & History",
@@ -572,7 +677,17 @@
       "history-meta-sets": "sets",
       "history-meta-done": "done",
       "preview-title-prefix": "Preview: ",
-      "routine-header-csv": "Date,Routine,Exercise,Set,Reps,Weight (kg)\n"
+      "routine-header-csv": "Date,Routine,Exercise,Set,Reps,Weight (kg)\n",
+      "editor-title-text": "Edit Routine",
+      "label-edit-routine-title": "Routine Name",
+      "btn-editor-save": "Save",
+      "btn-editor-cancel": "Cancel",
+      "edit-btn-edit": "Edit",
+      "editor-label-reps": "Reps",
+      "editor-label-weight": "Weight",
+      "editor-label-timer": "Timer",
+      "editor-label-duration": "Duration (s)",
+      "editor-btn-add-set": "Add Set"
     }
   };
 
@@ -598,7 +713,8 @@
       "no-routines-text", "title-history", "btn-export-csv", "no-history-text",
       "btn-clear-history", "title-settings", "label-language-select", "label-weight-unit",
       "weight-unit-kg", "weight-unit-lbs", "label-rest-time", "rest-60", "rest-90", "rest-120",
-      "rest-180", "label-auto-reload", "save-btn"
+      "rest-180", "label-auto-reload", "save-btn",
+      "editor-title-text", "label-edit-routine-title", "btn-editor-save", "btn-editor-cancel"
     ];
     ids.forEach(function(id) {
       var el = document.getElementById(id);
@@ -618,9 +734,12 @@
     renderHistory();
   }
   
-  // Parse Query Parameters
-  function getQueryParam(name) {
-    var query = window.location.search.substring(1);
+  // Parse Query Parameters or Hash Parameters
+  function getQueryOrHashParam(name) {
+    var query = window.location.hash.substring(1);
+    if (!query) {
+      query = window.location.search.substring(1);
+    }
     var vars = query.split("&");
     for (var i = 0; i < vars.length; i++) {
       var pair = vars[i].split("=");
@@ -633,9 +752,9 @@
 
   // Initialize Data
   function init() {
-    var routinesStr = getQueryParam("routines");
-    var historyStr = getQueryParam("history");
-    var activeIdStr = getQueryParam("active_id");
+    var routinesStr = getQueryOrHashParam("routines");
+    var historyStr = getQueryOrHashParam("history");
+    var activeIdStr = getQueryOrHashParam("active_id");
     
     if (routinesStr) {
       try {
@@ -746,10 +865,13 @@
       for (var j = 0; j < sets.length; j++) {
         var s = sets[j];
         var weight = s.weight_kg !== null && s.weight_kg !== undefined ? Math.round(s.weight_kg * 100) : 0;
+        var isTimed = s.duration_seconds !== null && s.duration_seconds !== undefined && s.duration_seconds > 0;
         cleanSets.push({
           index: j,
           reps: s.reps !== null && s.reps !== undefined ? s.reps : 0,
-          weight: weight
+          weight: weight,
+          is_timed: isTimed || !!s.is_timed,
+          target_duration: isTimed ? s.duration_seconds : (s.target_duration || 0)
         });
       }
       
@@ -820,6 +942,9 @@
         html += "<div class='preview-exercise'>";
         html += "<strong>" + ex.name + "</strong> (" + ex.sets.length + " " + t("history-meta-sets") + ")<br>";
         var setStrings = ex.sets.map(function(s) {
+          if (s.is_timed) {
+            return (s.target_duration || 0) + " s";
+          }
           return s.reps + "x " + (s.weight / 100) + " kg";
         });
         html += "<span style='color: var(--text-muted);'>" + setStrings.join(" | ") + "</span>";
@@ -965,6 +1090,14 @@
         renderRoutines();
       };
       actions.appendChild(actBtn);
+
+      var editBtn = document.createElement("button");
+      editBtn.className = "list-btn";
+      editBtn.innerText = t("edit-btn-edit");
+      editBtn.onclick = function() {
+        openRoutineEditor(routine.id);
+      };
+      actions.appendChild(editBtn);
       
       var delBtn = document.createElement("button");
       delBtn.className = "list-btn danger";
@@ -984,6 +1117,215 @@
       item.appendChild(actions);
       list.appendChild(item);
     });
+  }
+
+  var editingRoutine = null;
+
+  function openRoutineEditor(routineId) {
+    var routine = null;
+    for (var i = 0; i < savedRoutines.length; i++) {
+      if (savedRoutines[i].id === routineId) {
+        routine = savedRoutines[i];
+        break;
+      }
+    }
+    if (!routine) return;
+    
+    // Deep clone the routine so changes can be canceled
+    editingRoutine = JSON.parse(JSON.stringify(routine));
+    
+    document.getElementById("edit-routine-title").value = editingRoutine.title;
+    renderEditorExercises();
+    
+    document.getElementById("routine-editor").style.display = "block";
+    document.getElementById("routine-editor").scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function closeRoutineEditor() {
+    editingRoutine = null;
+    document.getElementById("routine-editor").style.display = "none";
+  }
+
+  function renderEditorExercises() {
+    var container = document.getElementById("editor-exercises-container");
+    container.innerHTML = "";
+    
+    if (!editingRoutine || !editingRoutine.exercises) return;
+    
+    editingRoutine.exercises.forEach(function(ex, exIdx) {
+      var exDiv = document.createElement("div");
+      exDiv.className = "editor-exercise";
+      
+      var titleDiv = document.createElement("div");
+      titleDiv.className = "editor-exercise-title";
+      
+      var exNameInput = document.createElement("input");
+      exNameInput.type = "text";
+      exNameInput.value = ex.name;
+      exNameInput.style.flexGrow = "1";
+      exNameInput.oninput = function() {
+        ex.name = exNameInput.value;
+      };
+      titleDiv.appendChild(exNameInput);
+      
+      var addSetBtn = document.createElement("button");
+      addSetBtn.className = "list-btn";
+      addSetBtn.innerText = t("editor-btn-add-set");
+      addSetBtn.onclick = function() {
+        addSetToEditor(exIdx);
+      };
+      titleDiv.appendChild(addSetBtn);
+      
+      exDiv.appendChild(titleDiv);
+      
+      var setsContainer = document.createElement("div");
+      
+      ex.sets.forEach(function(set, setIdx) {
+        var setRow = document.createElement("div");
+        setRow.className = "editor-set-row";
+        
+        var setLabel = document.createElement("span");
+        setLabel.innerText = (language === "de" ? "Satz " : "Set ") + (setIdx + 1) + ":";
+        setLabel.style.fontSize = "12px";
+        setLabel.style.fontWeight = "600";
+        setRow.appendChild(setLabel);
+        
+        var inputsDiv = document.createElement("div");
+        inputsDiv.className = "editor-set-inputs";
+        
+        // Timer Checkbox
+        var timerLabel = document.createElement("label");
+        var timerCheckbox = document.createElement("input");
+        timerCheckbox.type = "checkbox";
+        timerCheckbox.checked = !!set.is_timed;
+        timerCheckbox.onchange = function() {
+          set.is_timed = timerCheckbox.checked;
+          renderEditorExercises();
+        };
+        timerLabel.appendChild(timerCheckbox);
+        timerLabel.appendChild(document.createTextNode(" " + t("editor-label-timer")));
+        inputsDiv.appendChild(timerLabel);
+        
+        if (set.is_timed) {
+          // Duration input
+          var durLabel = document.createElement("label");
+          durLabel.innerText = t("editor-label-duration") + ":";
+          inputsDiv.appendChild(durLabel);
+          
+          var durInput = document.createElement("input");
+          durInput.type = "number";
+          durInput.value = set.target_duration || 0;
+          durInput.min = "0";
+          durInput.oninput = function() {
+            set.target_duration = parseInt(durInput.value, 10) || 0;
+          };
+          inputsDiv.appendChild(durInput);
+        } else {
+          // Reps input
+          var repsLabel = document.createElement("label");
+          repsLabel.innerText = t("editor-label-reps") + ":";
+          inputsDiv.appendChild(repsLabel);
+          
+          var repsInput = document.createElement("input");
+          repsInput.type = "number";
+          repsInput.value = set.reps || 0;
+          repsInput.min = "0";
+          repsInput.oninput = function() {
+            set.reps = parseInt(repsInput.value, 10) || 0;
+          };
+          inputsDiv.appendChild(repsInput);
+          
+          // Weight input
+          var weightLabel = document.createElement("label");
+          var displayUnit = weightUnit === "lbs" ? "lbs" : "kg";
+          weightLabel.innerText = t("editor-label-weight") + " (" + displayUnit + "):";
+          inputsDiv.appendChild(weightLabel);
+          
+          var weightInput = document.createElement("input");
+          weightInput.type = "number";
+          weightInput.step = "0.1";
+          weightInput.value = (set.weight / 100) || 0;
+          weightInput.min = "0";
+          weightInput.oninput = function() {
+            set.weight = Math.round(parseFloat(weightInput.value) * 100) || 0;
+          };
+          inputsDiv.appendChild(weightInput);
+        }
+        
+        setRow.appendChild(inputsDiv);
+        
+        // Delete button
+        var delBtn = document.createElement("button");
+        delBtn.className = "list-btn danger set-delete-btn";
+        delBtn.innerText = "X";
+        delBtn.onclick = function() {
+          deleteSetFromEditor(exIdx, setIdx);
+        };
+        setRow.appendChild(delBtn);
+        
+        setsContainer.appendChild(setRow);
+      });
+      
+      exDiv.appendChild(setsContainer);
+      container.appendChild(exDiv);
+    });
+  }
+
+  function addSetToEditor(exIdx) {
+    if (!editingRoutine || !editingRoutine.exercises[exIdx]) return;
+    var ex = editingRoutine.exercises[exIdx];
+    var lastSet = ex.sets[ex.sets.length - 1];
+    
+    var newSet = {
+      index: ex.sets.length,
+      reps: lastSet ? lastSet.reps : 10,
+      weight: lastSet ? lastSet.weight : 0,
+      is_timed: lastSet ? !!lastSet.is_timed : false,
+      target_duration: lastSet ? (lastSet.target_duration || 0) : 60
+    };
+    
+    ex.sets.push(newSet);
+    renderEditorExercises();
+  }
+
+  function deleteSetFromEditor(exIdx, setIdx) {
+    if (!editingRoutine || !editingRoutine.exercises[exIdx]) return;
+    var ex = editingRoutine.exercises[exIdx];
+    ex.sets.splice(setIdx, 1);
+    
+    // Re-index sets
+    ex.sets.forEach(function(set, idx) {
+      set.index = idx;
+    });
+    
+    renderEditorExercises();
+  }
+
+  function saveRoutineEdits() {
+    if (!editingRoutine) return;
+    
+    var title = document.getElementById("edit-routine-title").value.trim();
+    if (!title) {
+      alert(language === "de" ? "Bitte gib einen Routine-Namen ein." : "Please enter a routine name.");
+      return;
+    }
+    
+    editingRoutine.title = title;
+    
+    // Update in savedRoutines array
+    var routineIdx = -1;
+    for (var i = 0; i < savedRoutines.length; i++) {
+      if (savedRoutines[i].id === editingRoutine.id) {
+        routineIdx = i;
+        break;
+      }
+    }
+    if (routineIdx !== -1) {
+      savedRoutines[routineIdx] = editingRoutine;
+    }
+    
+    closeRoutineEditor();
+    renderRoutines();
   }
 
   // Render History List
