@@ -352,14 +352,37 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   }
   #endif
                       
-  // Determine layout geometry based on whether helper hints are shown
-  int content_y_offset = s_show_button_hints ? 0 : 8;
-  int reps_val_y = header_h + 12 + content_y_offset;
-  int reps_lbl_y = header_h + 52 + content_y_offset;
-  int divider_y1 = header_h + 16 + content_y_offset;
-  int divider_y2 = header_h + 50 + content_y_offset;
-  int prev_stats_y = header_h + 74 + content_y_offset * 1.5;
-  int progress_dot_y = header_h + 96 + content_y_offset * 2.2;
+  // Determine layout geometry dynamically based on rest timer & helper footer
+  int reps_val_y, reps_lbl_y, divider_y1, divider_y2, prev_stats_y, progress_dot_y, dot_r;
+  
+  if (s_rest_seconds_left > 0) {
+    // Rest Timer Active Layout (compact top section, rest timer below)
+    reps_val_y = header_h + 14;
+    reps_lbl_y = header_h + 50;
+    divider_y1 = header_h + 18;
+    divider_y2 = header_h + 48;
+    prev_stats_y = 0; // Hide previous stats during rest to avoid overlap
+    progress_dot_y = header_h + 66;
+    dot_r = 6;
+  } else if (s_show_button_hints) {
+    // Standard layout with helper footer
+    reps_val_y = header_h + 16;
+    reps_lbl_y = header_h + 54;
+    divider_y1 = header_h + 20;
+    divider_y2 = header_h + 52;
+    prev_stats_y = header_h + 72;
+    progress_dot_y = header_h + 90;
+    dot_r = 7;
+  } else {
+    // Expanded layout without helper footer
+    reps_val_y = header_h + 24;
+    reps_lbl_y = header_h + 60;
+    divider_y1 = header_h + 28;
+    divider_y2 = header_h + 58;
+    prev_stats_y = header_h + 78;
+    progress_dot_y = header_h + 98;
+    dot_r = 7;
+  }
   
   // Custom font size for large numbers
   GFont numbers_font = fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS);
@@ -438,7 +461,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   }
   
   // 3. Draw Previous Stats (e.g. "Letztes Mal: 10 x 75 kg")
-  if (active_set->prev_reps > 0 && !active_set->is_timed) {
+  if (prev_stats_y > 0 && active_set->prev_reps > 0 && !active_set->is_timed) {
     static char prev_buf[48];
     static char prev_weight_str[16];
     format_weight(prev_weight_str, sizeof(prev_weight_str), active_set->prev_weight, s_weight_unit);
@@ -451,7 +474,6 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   }
   
   // 4. Draw Progress dots (larger and spaced out)
-  int dot_r = 7;
   int gap = 9;
   int total_dots_w = (active_ex->set_count * (dot_r * 2)) + ((active_ex->set_count - 1) * gap);
   int start_x = (bounds.size.w - total_dots_w) / 2;
@@ -481,7 +503,7 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
 
   // 5. Draw Rest Timer Overlay if active
   if (s_rest_seconds_left > 0) {
-    int timer_h = 75;
+    int timer_h = 56;
     int timer_y = bounds.size.h - timer_h;
     
     // Background bar: Solid white to hide background elements
@@ -498,13 +520,13 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     snprintf(timer_buf, sizeof(timer_buf), translate("PAUSE: %d s", "REST: %d s"), s_rest_seconds_left);
     graphics_context_set_text_color(ctx, GColorCobaltBlue);
     graphics_draw_text(ctx, timer_buf, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-                       GRect(10, timer_y + 10, bounds.size.w - 20, 28),
+                       GRect(10, timer_y + 6, bounds.size.w - 20, 28),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
     // Hint to dismiss timer
     graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, translate("BACK: Pause überspringen", "BACK: Skip Rest"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                       GRect(10, timer_y + 44, bounds.size.w - 20, 16),
+                       GRect(10, timer_y + 36, bounds.size.w - 20, 16),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   } else if (s_show_button_hints) {
     // Normal instructions footer
