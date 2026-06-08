@@ -352,35 +352,48 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   }
   #endif
                       
+  // Determine screen-specific scaling offsets (Pebble best practice)
+  int screen_h = bounds.size.h;
+  
+  // Calculate dynamic vertical offset for taller screens (e.g. Emery has 228px height, so vertical_diff = 60px)
+  int vertical_diff = screen_h - 168;
+  int y_scale_offset = (vertical_diff > 0) ? (vertical_diff / 3) : 0; // 20px on Emery, 0px on Basalt
+  
+  // Pebble Time Round specific centering adjustments
+  int round_offset = 0;
+  #if defined(PBL_ROUND)
+  round_offset = 6;
+  #endif
+
   // Determine layout geometry dynamically based on rest timer & helper footer
   int reps_val_y, reps_lbl_y, divider_y1, divider_y2, prev_stats_y, progress_dot_y, dot_r;
   
   if (s_rest_seconds_left > 0) {
     // Rest Timer Active Layout (compact top section, rest timer below)
-    reps_val_y = header_h + 14;
-    reps_lbl_y = header_h + 50;
-    divider_y1 = header_h + 18;
-    divider_y2 = header_h + 48;
+    reps_val_y = header_h + 14 + y_scale_offset + round_offset;
+    reps_lbl_y = header_h + 50 + y_scale_offset + round_offset;
+    divider_y1 = header_h + 18 + y_scale_offset + round_offset;
+    divider_y2 = header_h + 48 + y_scale_offset + round_offset;
     prev_stats_y = 0; // Hide previous stats during rest to avoid overlap
-    progress_dot_y = header_h + 66;
+    progress_dot_y = header_h + 66 + y_scale_offset + round_offset;
     dot_r = 6;
   } else if (s_show_button_hints) {
     // Standard layout with helper footer
-    reps_val_y = header_h + 16;
-    reps_lbl_y = header_h + 54;
-    divider_y1 = header_h + 20;
-    divider_y2 = header_h + 52;
-    prev_stats_y = header_h + 72;
-    progress_dot_y = header_h + 90;
+    reps_val_y = header_h + 16 + y_scale_offset + round_offset;
+    reps_lbl_y = header_h + 54 + y_scale_offset + round_offset;
+    divider_y1 = header_h + 20 + y_scale_offset + round_offset;
+    divider_y2 = header_h + 52 + y_scale_offset + round_offset;
+    prev_stats_y = header_h + 72 + y_scale_offset * 2 + round_offset;
+    progress_dot_y = header_h + 90 + y_scale_offset * 2 + round_offset;
     dot_r = 7;
   } else {
     // Expanded layout without helper footer
-    reps_val_y = header_h + 24;
-    reps_lbl_y = header_h + 60;
-    divider_y1 = header_h + 28;
-    divider_y2 = header_h + 58;
-    prev_stats_y = header_h + 78;
-    progress_dot_y = header_h + 98;
+    reps_val_y = header_h + 24 + y_scale_offset * 1.5 + round_offset;
+    reps_lbl_y = header_h + 60 + y_scale_offset * 1.5 + round_offset;
+    divider_y1 = header_h + 28 + y_scale_offset * 1.5 + round_offset;
+    divider_y2 = header_h + 58 + y_scale_offset * 1.5 + round_offset;
+    prev_stats_y = header_h + 78 + y_scale_offset * 2.2 + round_offset;
+    progress_dot_y = header_h + 98 + y_scale_offset * 2.5 + round_offset;
     dot_r = 7;
   }
   
