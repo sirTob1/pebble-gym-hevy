@@ -17,6 +17,7 @@ typedef enum {
 #define PERSIST_KEY_SHOW_BUTTON_HINTS 101
 static AppLanguage s_language = LANG_DE;
 static bool s_show_button_hints = true;
+static bool s_explicit_activation_requested = false;
 
 static const char* translate(const char* de, const char* en) {
   return (s_language == LANG_EN) ? en : de;
@@ -895,21 +896,30 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
             
             // Check if final packet received
             if (ex_idx == s_expected_exercise_count - 1 && set_idx == s_exercises[ex_idx].set_count - 1) {
-              s_workout_in_progress = true;
-              s_current_exercise_idx = 0;
-              s_current_set_idx = 0;
-              s_edit_mode = EDIT_NONE;
-              s_rest_seconds_left = 0;
-              if (s_rest_timer) {
-                app_timer_cancel(s_rest_timer);
-                s_rest_timer = NULL;
+              s_expected_exercise_count = 0; // Reset expected count since sync is complete
+              
+              if (s_explicit_activation_requested) {
+                s_workout_in_progress = true;
+                s_current_exercise_idx = 0;
+                s_current_set_idx = 0;
+                s_edit_mode = EDIT_NONE;
+                s_rest_seconds_left = 0;
+                if (s_rest_timer) {
+                  app_timer_cancel(s_rest_timer);
+                  s_rest_timer = NULL;
+                }
+                
+                // Transition to workout screen
+                window_stack_push(s_workout_window, true);
+                
+                // Vibrate watch to announce sync success
+                vibes_double_pulse();
+                
+                s_explicit_activation_requested = false;
+              } else {
+                // Just refresh the sync screen to show it's idle
+                layer_mark_dirty(s_sync_layer);
               }
-              
-              // Transition to workout screen
-              window_stack_push(s_workout_window, true);
-              
-              // Vibrate watch to announce sync success
-              vibes_double_pulse();
             }
           }
         }
@@ -1159,6 +1169,7 @@ static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
   
   // Save the selected routine ID to trigger activation sync after window transition completes
   snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", r->id);
+  s_explicit_activation_requested = true;
   
   // Pop routine list menu to return to sync view
   window_stack_pop(true);
