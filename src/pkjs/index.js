@@ -24,7 +24,9 @@ var myMessageKeys = {
   "SET_INDEX": 10003,
   "TARGET_REPS": 10005,
   "TARGET_WEIGHT": 10004,
-  "WORKOUT_ACTION": 10008
+  "WORKOUT_ACTION": 10008,
+  "IS_TIMED": 10020,
+  "TARGET_DURATION": 10021
 };
 
 // Helper to duplicate payload keys (both string and integer) to ensure compatibility on Gadgetbridge and other runtimes
@@ -124,10 +126,13 @@ function parseHevyRoutine(htmlOrJson) {
       var s = sets[j];
       // weight_kg could be null/float. Store weight in kg * 100 as integer to avoid float issues in C
       var weight = s.weight_kg !== null && s.weight_kg !== undefined ? Math.round(s.weight_kg * 100) : 0;
+      var isTimed = s.duration_seconds !== null && s.duration_seconds !== undefined && s.duration_seconds > 0;
       cleanSets.push({
         index: j,
         reps: s.reps !== null && s.reps !== undefined ? s.reps : 0,
-        weight: weight
+        weight: weight,
+        is_timed: isTimed || !!s.is_timed,
+        target_duration: isTimed ? s.duration_seconds : (s.target_duration || 0)
       });
     }
     
@@ -292,7 +297,9 @@ function syncActiveRoutineToWatch(clearQueue) {
           TARGET_WEIGHT: s.weight,
           TARGET_REPS: s.reps,
           PREV_WEIGHT: hist ? hist.weight : 0,
-          PREV_REPS: hist ? hist.reps : 0
+          PREV_REPS: hist ? hist.reps : 0,
+          IS_TIMED: s.is_timed ? 1 : 0,
+          TARGET_DURATION: s.target_duration || 0
         });
       }
     }
@@ -368,7 +375,8 @@ function openConfigPage() {
   var activeId = localStorage.getItem("active_routine_id") || "";
   
   var url = "https://sirtob1.github.io/pebble-gym-hevy/src/pkjs/config.html?v=" + Date.now() +
-            "&routines=" + encodeURIComponent(routines) +
+            "#" +
+            "routines=" + encodeURIComponent(routines) +
             "&history=" + encodeURIComponent(history) +
             "&active_id=" + encodeURIComponent(activeId);
             

@@ -1,7 +1,7 @@
 {
   "name": "pebble-gym-hevy",
   "author": "Antigravity",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "keywords": [
     "pebble-app"
   ],
@@ -40,7 +40,9 @@
       "ROUTINE_ID",
       "ROUTINE_NAME",
       "ACTIVE_ROUTINE_ID",
-      "LANGUAGE"
+      "LANGUAGE",
+      "IS_TIMED",
+      "TARGET_DURATION"
     ],
     "resources": {
       "media": []

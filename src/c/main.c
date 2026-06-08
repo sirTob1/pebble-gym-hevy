@@ -38,6 +38,8 @@ typedef struct {
   int logged_weight; // weight * 100 (integer)
   bool completed;
   bool skipped;
+  bool is_timed;
+  int target_duration; // in seconds
 } SetData;
 
 // Exercise data structure
@@ -75,6 +77,9 @@ static int s_weight_unit = UNIT_KG;
 static int s_rest_seconds = 90;
 static int s_rest_seconds_left = 0;
 static AppTimer *s_rest_timer = NULL;
+
+static int s_active_timer_seconds_left = 0;
+static AppTimer *s_active_set_timer = NULL;
 
 // Inline editor state
 static EditMode s_edit_mode = EDIT_NONE;
@@ -197,15 +202,31 @@ static void timer_callback(void *data) {
   }
 }
 
+static void log_current_set(void);
+
+// Active set timer tick callback
+static void active_set_timer_callback(void *data) {
+  if (s_active_timer_seconds_left > 0) {
+    s_active_timer_seconds_left--;
+    layer_mark_dirty(s_workout_layer);
+    s_active_set_timer = app_timer_register(1000, active_set_timer_callback, NULL);
+  } else {
+    s_active_set_timer = NULL;
+    // Notify user timed set is completed with a long haptic vibration
+    vibes_long_pulse();
+    log_current_set();
+  }
+}
+
 // Sync window drawing proc (waiting for routine sync)
 static void sync_layer_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   
   // Background
-  graphics_context_set_fill_color(ctx, GColorBlack);
+  graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   
-  graphics_context_set_text_color(ctx, GColorWhite);
+  graphics_context_set_text_color(ctx, GColorBlack);
   
   if (s_expected_exercise_count > 0) {
     // Syncing in progress
@@ -222,6 +243,7 @@ static void sync_layer_update_proc(Layer *layer, GContext *ctx) {
                        GRect(10, 20, bounds.size.w - 20, 30),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
+    graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, translate("Wähle einen Plan mit SELECT oder starte ein Workout auf dem Handy.", "Select a routine with SELECT or start a workout on your phone."), s_label_font,
                        GRect(10, bounds.size.h / 2 - 30, bounds.size.w - 20, 70),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -236,8 +258,8 @@ static void sync_layer_update_proc(Layer *layer, GContext *ctx) {
 static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   
-  // Clean background
-  graphics_context_set_fill_color(ctx, GColorBlack);
+  // Clean background: White background
+  graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   
   if (s_exercise_count == 0) return;
@@ -245,11 +267,11 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   ExerciseData *active_ex = &s_exercises[s_current_exercise_idx];
   SetData *active_set = &active_ex->sets[s_current_set_idx];
   
-  // 1. Header Area (Exercise Title)
+  // 1. Header Area (Exercise Title) - CobaltBlue header remains high contrast
   int header_h = 34;
   graphics_context_set_fill_color(ctx, GColorCobaltBlue);
   graphics_fill_rect(ctx, GRect(0, 0, bounds.size.w, header_h), 0, GCornerNone);
-  graphics_context_set_stroke_color(ctx, GColorDarkGray);
+  graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_line(ctx, GPoint(0, header_h - 1), GPoint(bounds.size.w, header_h - 1));
   
@@ -260,8 +282,13 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
                      
   // 2. Edit Mode drawing overlay
   if (s_edit_mode != EDIT_NONE) {
-    graphics_context_set_text_color(ctx, GColorYellow);
-    const char *edit_title = (s_edit_mode == EDIT_WEIGHT) ? translate("GEWICHT ÄNDERN", "EDIT WEIGHT") : translate("WIEDERHOLUNGEN", "REPETITIONS");
+    graphics_context_set_text_color(ctx, GColorCobaltBlue);
+    const char *edit_title = "";
+    if (s_edit_mode == EDIT_WEIGHT) {
+      edit_title = translate("GEWICHT ÄNDERN", "EDIT WEIGHT");
+    } else {
+      edit_title = active_set->is_timed ? translate("DAUER ÄNDERN", "EDIT DURATION") : translate("WIEDERHOLUNGEN", "REPETITIONS");
+    }
     graphics_draw_text(ctx, edit_title, s_label_font,
                        GRect(10, header_h + 10, bounds.size.w - 20, 20),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -270,15 +297,21 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     if (s_edit_mode == EDIT_WEIGHT) {
       format_weight(val_buf, sizeof(val_buf), s_edit_weight, s_weight_unit);
     } else {
-      snprintf(val_buf, sizeof(val_buf), translate("%d Wdh.", "%d Reps"), s_edit_reps);
+      if (active_set->is_timed) {
+        int mins = s_edit_reps / 60;
+        int secs = s_edit_reps % 60;
+        snprintf(val_buf, sizeof(val_buf), "%02d:%02d", mins, secs);
+      } else {
+        snprintf(val_buf, sizeof(val_buf), translate("%d Wdh.", "%d Reps"), s_edit_reps);
+      }
     }
     
-    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_context_set_text_color(ctx, GColorBlack);
     graphics_draw_text(ctx, val_buf, s_main_font,
                        GRect(10, header_h + 35, bounds.size.w - 20, 36),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
-    graphics_context_set_text_color(ctx, GColorLightGray);
+    graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, translate("UP/DN: Wert | SEL: Sichern", "UP/DN: Value | SEL: Save"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, bounds.size.h - 32, bounds.size.w - 20, 16),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -289,12 +322,20 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   }
   
   // 3. Normal Mode drawing
-  // Draw Set Indices (e.g. "Satz 2 von 4")
-  static char set_idx_buf[24];
-  snprintf(set_idx_buf, sizeof(set_idx_buf), translate("Satz %d von %d", "Set %d of %d"), s_current_set_idx + 1, active_ex->set_count);
-  graphics_context_set_text_color(ctx, GColorLightGray);
+  // Draw current time on the left side of sub-header
+  static char time_buf[8];
+  clock_copy_time_string(time_buf, sizeof(time_buf));
+  graphics_context_set_text_color(ctx, GColorDarkGray);
+  graphics_draw_text(ctx, time_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                     GRect(6, header_h + 4, 38, 18),
+                     GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+
+  // Draw Set Indices (e.g. "Satz 2/4" or "Set 2/4")
+  static char set_idx_buf[16];
+  snprintf(set_idx_buf, sizeof(set_idx_buf), translate("Satz %d/%d", "Set %d/%d"), s_current_set_idx + 1, active_ex->set_count);
+  graphics_context_set_text_color(ctx, GColorDarkGray);
   graphics_draw_text(ctx, set_idx_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(10, header_h + 4, bounds.size.w - 20, 18),
+                     GRect(45, header_h + 4, bounds.size.w - 95, 18),
                      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                      
   #if defined(PBL_HEALTH)
@@ -304,30 +345,41 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     snprintf(hr_buf, sizeof(hr_buf), "%d bpm", s_current_heart_rate);
     graphics_context_set_text_color(ctx, GColorRed);
     graphics_draw_text(ctx, hr_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                       GRect(bounds.size.w - 60, header_h + 4, 52, 18),
+                       GRect(bounds.size.w - 49, header_h + 4, 45, 18),
                        GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
   }
   #endif
-                     
-  // Draw Target values (e.g. "10 x 82.5 kg")
+                      
+  // Draw Target values (e.g. "10 x 82.5 kg" or "05:00")
   static char target_buf[32];
-  static char weight_str[16];
-  format_weight(weight_str, sizeof(weight_str), active_set->weight, s_weight_unit);
-  snprintf(target_buf, sizeof(target_buf), "%d x %s", active_set->reps, weight_str);
+  if (active_set->is_timed) {
+    int display_seconds = (s_active_timer_seconds_left > 0 || s_active_set_timer) ? s_active_timer_seconds_left : active_set->target_duration;
+    int mins = display_seconds / 60;
+    int secs = display_seconds % 60;
+    snprintf(target_buf, sizeof(target_buf), "%02d:%02d", mins, secs);
+  } else {
+    static char weight_str[16];
+    format_weight(weight_str, sizeof(weight_str), active_set->weight, s_weight_unit);
+    snprintf(target_buf, sizeof(target_buf), "%d x %s", active_set->reps, weight_str);
+  }
   
-  graphics_context_set_text_color(ctx, active_set->completed ? GColorIslamicGreen : GColorYellow);
+  if (active_set->is_timed && s_active_set_timer) {
+    graphics_context_set_text_color(ctx, GColorRed); // Red/running state
+  } else {
+    graphics_context_set_text_color(ctx, active_set->completed ? GColorDarkGreen : GColorBlack);
+  }
   graphics_draw_text(ctx, target_buf, s_main_font,
                      GRect(10, header_h + 20, bounds.size.w - 20, 36),
                      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                      
   // Draw Previous Stats (e.g. "Letztes Mal: 10 x 75 kg")
-  if (active_set->prev_reps > 0) {
+  if (active_set->prev_reps > 0 && !active_set->is_timed) {
     static char prev_buf[48];
     static char prev_weight_str[16];
     format_weight(prev_weight_str, sizeof(prev_weight_str), active_set->prev_weight, s_weight_unit);
     snprintf(prev_buf, sizeof(prev_buf), translate("Letztes Mal: %d x %s", "Last time: %d x %s"), active_set->prev_reps, prev_weight_str);
     
-    graphics_context_set_text_color(ctx, GColorLightGray);
+    graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, prev_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(10, header_h + 54, bounds.size.w - 20, 18),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -345,54 +397,52 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     graphics_context_set_stroke_width(ctx, 1);
     
     if (d == s_current_set_idx) {
-      // Active set dot: yellow ring + yellow fill (or glowing)
-      graphics_context_set_stroke_color(ctx, GColorYellow);
+      graphics_context_set_stroke_color(ctx, GColorCobaltBlue);
       graphics_draw_circle(ctx, GPoint(cx, dot_y), dot_r + 2);
     }
     
     if (active_ex->sets[d].completed) {
-      graphics_context_set_fill_color(ctx, GColorIslamicGreen);
+      graphics_context_set_fill_color(ctx, GColorDarkGreen);
       graphics_fill_circle(ctx, GPoint(cx, dot_y), dot_r);
     } else if (active_ex->sets[d].skipped) {
       graphics_context_set_fill_color(ctx, GColorRed);
       graphics_fill_circle(ctx, GPoint(cx, dot_y), dot_r);
     } else {
-      // Pending set: empty gray border
       graphics_context_set_stroke_color(ctx, GColorDarkGray);
       graphics_draw_circle(ctx, GPoint(cx, dot_y), dot_r);
     }
   }
 
-  // Draw Rest Timer Overlay if active
+  // Draw Rest Timer Overlay if active (Issue #10)
   if (s_rest_seconds_left > 0) {
-    int timer_h = 42;
+    int timer_h = 75; // Increased height
     int timer_y = bounds.size.h - timer_h;
     
-    // Background bar
-    graphics_context_set_fill_color(ctx, GColorClear);
+    // Background bar: Solid white to hide background elements
+    graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_fill_rect(ctx, GRect(0, timer_y, bounds.size.w, timer_h), 0, GCornerNone);
     
-    // Draw neon-blue progress bar at the very top of timer box
+    // Draw CobaltBlue progress bar at the very top of timer box
     int bar_w = (s_rest_seconds_left * bounds.size.w) / s_rest_seconds;
-    graphics_context_set_fill_color(ctx, GColorCyan);
+    graphics_context_set_fill_color(ctx, GColorCobaltBlue);
     graphics_fill_rect(ctx, GRect(0, timer_y, bar_w, 4), 0, GCornerNone);
     
     // Timer Text
     static char timer_buf[24];
     snprintf(timer_buf, sizeof(timer_buf), translate("PAUSE: %d s", "REST: %d s"), s_rest_seconds_left);
-    graphics_context_set_text_color(ctx, GColorCyan);
-    graphics_draw_text(ctx, timer_buf, s_label_font,
-                       GRect(10, timer_y + 10, bounds.size.w - 20, 24),
+    graphics_context_set_text_color(ctx, GColorCobaltBlue);
+    graphics_draw_text(ctx, timer_buf, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
+                       GRect(10, timer_y + 10, bounds.size.w - 20, 28),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                        
     // Hint to dismiss timer
     graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, translate("BACK: Pause überspringen", "BACK: Skip Rest"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                       GRect(10, timer_y + 26, bounds.size.w - 20, 14),
+                       GRect(10, timer_y + 44, bounds.size.w - 20, 16),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   } else {
     // Normal instructions footer
-    graphics_context_set_text_color(ctx, GColorLightGray);
+    graphics_context_set_text_color(ctx, GColorDarkGray);
     graphics_draw_text(ctx, translate("SEL (Halten): Log Satz | SEL: Übungen", "SEL (Hold): Log Set | SEL: Exercises"), fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(6, bounds.size.h - 30, bounds.size.w - 12, 14),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -405,10 +455,15 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
 // Workout click handler
 static void workout_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (s_edit_mode == EDIT_WEIGHT) {
-    s_edit_weight += 250; // +2.5 kg/lbs
+    s_edit_weight += 100; // +1.0 kg/lbs
     layer_mark_dirty(s_workout_layer);
   } else if (s_edit_mode == EDIT_REPS) {
-    s_edit_reps += 1; // +1 rep
+    SetData *active_set = &s_exercises[s_current_exercise_idx].sets[s_current_set_idx];
+    if (active_set->is_timed) {
+      s_edit_reps += 5; // +5 seconds
+    } else {
+      s_edit_reps += 1; // +1 rep
+    }
     layer_mark_dirty(s_workout_layer);
   } else {
     // Scroll sets up
@@ -421,10 +476,15 @@ static void workout_up_click_handler(ClickRecognizerRef recognizer, void *contex
 
 static void workout_down_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (s_edit_mode == EDIT_WEIGHT) {
-    if (s_edit_weight >= 250) s_edit_weight -= 250;
+    if (s_edit_weight >= 100) s_edit_weight -= 100; // -1.0 kg/lbs
     layer_mark_dirty(s_workout_layer);
   } else if (s_edit_mode == EDIT_REPS) {
-    if (s_edit_reps > 0) s_edit_reps -= 1;
+    SetData *active_set = &s_exercises[s_current_exercise_idx].sets[s_current_set_idx];
+    if (active_set->is_timed) {
+      if (s_edit_reps > 5) s_edit_reps -= 5; // -5 seconds, min 5s
+    } else {
+      if (s_edit_reps > 0) s_edit_reps -= 1; // -1 rep
+    }
     layer_mark_dirty(s_workout_layer);
   } else {
     // Scroll sets down
@@ -445,7 +505,11 @@ static void workout_select_click_handler(ClickRecognizerRef recognizer, void *co
     if (s_edit_mode == EDIT_WEIGHT) {
       active_set->weight = s_edit_weight;
     } else if (s_edit_mode == EDIT_REPS) {
-      active_set->reps = s_edit_reps;
+      if (active_set->is_timed) {
+        active_set->target_duration = s_edit_reps;
+      } else {
+        active_set->reps = s_edit_reps;
+      }
     }
     s_edit_mode = EDIT_NONE;
     layer_mark_dirty(s_workout_layer);
@@ -463,10 +527,7 @@ static void workout_select_click_handler(ClickRecognizerRef recognizer, void *co
   }
 }
 
-static void workout_select_long_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if (s_edit_mode != EDIT_NONE) return;
-  
-  // Mark set as done!
+static void log_current_set(void) {
   ExerciseData *active_ex = &s_exercises[s_current_exercise_idx];
   SetData *active_set = &active_ex->sets[s_current_set_idx];
   
@@ -474,6 +535,12 @@ static void workout_select_long_click_handler(ClickRecognizerRef recognizer, voi
   active_set->skipped = false;
   active_set->logged_reps = active_set->reps;
   active_set->logged_weight = active_set->weight;
+  
+  if (s_active_set_timer) {
+    app_timer_cancel(s_active_set_timer);
+    s_active_set_timer = NULL;
+  }
+  s_active_timer_seconds_left = 0;
   
   // Log immediately to phone
   send_logged_set(s_current_exercise_idx, s_current_set_idx, active_set->logged_reps, active_set->logged_weight, true);
@@ -498,12 +565,43 @@ static void workout_select_long_click_handler(ClickRecognizerRef recognizer, voi
   layer_mark_dirty(s_workout_layer);
 }
 
+static void workout_select_long_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (s_edit_mode != EDIT_NONE) return;
+  
+  ExerciseData *active_ex = &s_exercises[s_current_exercise_idx];
+  SetData *active_set = &active_ex->sets[s_current_set_idx];
+  
+  if (active_set->is_timed) {
+    if (s_active_set_timer) {
+      // Pause active set timer
+      app_timer_cancel(s_active_set_timer);
+      s_active_set_timer = NULL;
+      vibes_short_pulse();
+    } else {
+      // Start or resume active set timer
+      if (s_active_timer_seconds_left <= 0) {
+        s_active_timer_seconds_left = active_set->target_duration;
+      }
+      s_active_set_timer = app_timer_register(1000, active_set_timer_callback, NULL);
+      vibes_short_pulse();
+    }
+    layer_mark_dirty(s_workout_layer);
+  } else {
+    log_current_set();
+  }
+}
+
 static void workout_up_long_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (s_edit_mode != EDIT_NONE) return;
   
-  // Enter Edit Weight
-  s_edit_mode = EDIT_WEIGHT;
-  s_edit_weight = s_exercises[s_current_exercise_idx].sets[s_current_set_idx].weight;
+  SetData *active_set = &s_exercises[s_current_exercise_idx].sets[s_current_set_idx];
+  if (active_set->is_timed) {
+    s_edit_mode = EDIT_REPS;
+    s_edit_reps = active_set->target_duration;
+  } else {
+    s_edit_mode = EDIT_WEIGHT;
+    s_edit_weight = active_set->weight;
+  }
   layer_mark_dirty(s_workout_layer);
   vibes_short_pulse();
 }
@@ -511,9 +609,14 @@ static void workout_up_long_click_handler(ClickRecognizerRef recognizer, void *c
 static void workout_down_long_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (s_edit_mode != EDIT_NONE) return;
   
-  // Enter Edit Reps
-  s_edit_mode = EDIT_REPS;
-  s_edit_reps = s_exercises[s_current_exercise_idx].sets[s_current_set_idx].reps;
+  SetData *active_set = &s_exercises[s_current_exercise_idx].sets[s_current_set_idx];
+  if (active_set->is_timed) {
+    s_edit_mode = EDIT_REPS;
+    s_edit_reps = active_set->target_duration;
+  } else {
+    s_edit_mode = EDIT_REPS;
+    s_edit_reps = active_set->reps;
+  }
   layer_mark_dirty(s_workout_layer);
   vibes_short_pulse();
 }
@@ -675,6 +778,11 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
             set->prev_reps = prev_reps_t ? prev_reps_t->value->uint16 : 0;
             set->prev_weight = prev_weight_t ? prev_weight_t->value->uint32 : 0;
             
+            Tuple *is_timed_t = dict_find(iter, MESSAGE_KEY_IS_TIMED);
+            Tuple *target_duration_t = dict_find(iter, MESSAGE_KEY_TARGET_DURATION);
+            set->is_timed = is_timed_t ? (is_timed_t->value->uint8 == 1) : false;
+            set->target_duration = target_duration_t ? target_duration_t->value->uint32 : 0;
+            
             // Check if final packet received
             if (ex_idx == s_expected_exercise_count - 1 && set_idx == s_exercises[ex_idx].set_count - 1) {
               s_workout_in_progress = true;
@@ -755,6 +863,12 @@ static void health_handler(HealthEventType event, void *context) {
 }
 #endif
 
+static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
+  if (s_workout_window && window_is_loaded(s_workout_window) && s_workout_layer) {
+    layer_mark_dirty(s_workout_layer);
+  }
+}
+
 static void workout_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
@@ -765,6 +879,8 @@ static void workout_window_load(Window *window) {
   
   window_set_click_config_provider(window, workout_click_config_provider);
 
+  tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+
   #if defined(PBL_HEALTH)
   s_current_heart_rate = 0;
   health_service_events_subscribe(health_handler, NULL);
@@ -774,6 +890,8 @@ static void workout_window_load(Window *window) {
 }
 
 static void workout_window_unload(Window *window) {
+  tick_timer_service_unsubscribe();
+
   #if defined(PBL_HEALTH)
   health_service_events_unsubscribe();
   health_service_set_heart_rate_sample_period(0);
@@ -790,6 +908,12 @@ static void workout_window_unload(Window *window) {
     s_rest_timer = NULL;
   }
   s_rest_seconds_left = 0;
+
+  if (s_active_set_timer) {
+    app_timer_cancel(s_active_set_timer);
+    s_active_set_timer = NULL;
+  }
+  s_active_timer_seconds_left = 0;
   
   // Redraw sync screen
   layer_mark_dirty(s_sync_layer);
@@ -882,6 +1006,10 @@ static void exercise_menu_window_load(Window *window) {
   
   menu_layer_set_click_config_onto_window(s_exercise_menu_layer, window);
   layer_add_child(window_layer, menu_layer_get_layer(s_exercise_menu_layer));
+
+  if (s_current_exercise_idx < s_exercise_count) {
+    menu_layer_set_selected_index(s_exercise_menu_layer, (MenuIndex){.section = 0, .row = s_current_exercise_idx}, MenuRowAlignCenter, false);
+  }
 }
 
 static void exercise_menu_window_unload(Window *window) {
