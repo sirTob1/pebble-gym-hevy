@@ -13,6 +13,8 @@ PebbleGym brings your fitness routines directly to your wrist. Compatible with a
 ## 🌟 Key Features
 
 *   🔗 **Hevy Routine Import**: Paste your public Hevy routine link (`https://hevy.com/routine/[id]`) in the configuration page. The PebbleKit JS companion automatically fetches and scrapes the routine structure (no Hevy Pro API key required, though supported!).
+*   🛠️ **Custom Routines**: Create new custom routines directly on the Settings Page if you prefer not to use Hevy. Add custom exercises, define your target weights, reps, and timers manually.
+*   💡 **Button Hints**: Helpful on-screen hints to quickly reference button mappings during your workout (can be toggled off in settings).
 *   📊 **Workout UI with Set Indicators**: Displays active exercise name, current set (e.g. `Set 2/4`), and targets (`10 x 80 kg`). Underneath, it highlights previous workout stats (`Last time: 10 x 75 kg`) for rapid progress tracking.
 *   🟢 **Set Progress Ring/Dots**: Features custom-drawn progress dots showing completed sets (green), active sets (yellow ring), and upcoming sets (gray outline) directly on the screen.
 *   🔒 **Accidental Click Protection**: Completing/logging a set requires a **long-press** on the *Select* button, preventing sweaty hands or accidental bumps from falsely marking sets as done.

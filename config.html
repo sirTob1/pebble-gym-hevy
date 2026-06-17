@@ -472,7 +472,10 @@
 
   <!-- Section 2: Saved Routines -->
   <div class="card">
-    <div class="card-title" id="title-my-routines">Meine Routinen</div>
+    <div class="card-title">
+      <span id="title-my-routines">Meine Routinen</span>
+      <button class="list-btn active" id="btn-create-routine" style="font-size: 11px; padding: 4px 8px;" onclick="createNewRoutine()">Neu</button>
+    </div>
     <div id="routines-list"></div>
     <div id="no-routines-text" style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 10px 0;">Keine Routinen geladen. Bitte importiere eine Routine oben.</div>
   </div>
@@ -491,6 +494,10 @@
     
     <div id="editor-exercises-container">
       <!-- Dynamic list of exercises & sets will be rendered here -->
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button class="btn btn-secondary" id="btn-editor-add-ex" style="border: 1px dashed var(--accent); color: var(--accent);" onclick="addExerciseToEditor()">Übung hinzufügen</button>
     </div>
     
     <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -628,7 +635,11 @@
       "editor-label-weight": "Gewicht",
       "editor-label-timer": "Timer",
       "editor-label-duration": "Dauer (s)",
-      "editor-btn-add-set": "Satz hinzufügen"
+      "editor-btn-add-set": "Satz hinzufügen",
+      "btn-create-routine": "Neu",
+      "btn-editor-add-ex": "+ Übung",
+      "new-routine-default-title": "Neue Routine",
+      "new-exercise-default-name": "Neue Übung"
     },
     en: {
       "brand-subtitle": "Hevy Workout Companion & History",
@@ -693,7 +704,11 @@
       "editor-label-weight": "Weight",
       "editor-label-timer": "Timer",
       "editor-label-duration": "Duration (s)",
-      "editor-btn-add-set": "Add Set"
+      "editor-btn-add-set": "Add Set",
+      "btn-create-routine": "New",
+      "btn-editor-add-ex": "+ Exercise",
+      "new-routine-default-title": "New Routine",
+      "new-exercise-default-name": "New Exercise"
     }
   };
 
@@ -720,7 +735,8 @@
       "btn-clear-history", "title-settings", "label-language-select", "label-weight-unit",
       "weight-unit-kg", "weight-unit-lbs", "label-rest-time", "rest-60", "rest-90", "rest-120",
       "rest-180", "label-auto-reload", "label-show-hints", "save-btn",
-      "editor-title-text", "label-edit-routine-title", "btn-editor-save", "btn-editor-cancel"
+      "editor-title-text", "label-edit-routine-title", "btn-editor-save", "btn-editor-cancel",
+      "btn-create-routine", "btn-editor-add-ex"
     ];
     ids.forEach(function(id) {
       var el = document.getElementById(id);
@@ -1152,9 +1168,27 @@
     document.getElementById("routine-editor").scrollIntoView({ behavior: 'smooth' });
   }
 
+  function createNewRoutine() {
+    var newId = "custom_" + Date.now();
+    var newRoutine = {
+      id: newId,
+      title: t("new-routine-default-title") || "Neue Routine",
+      exercises: []
+    };
+    
+    savedRoutines.unshift(newRoutine);
+    renderRoutines();
+    openRoutineEditor(newId);
+  }
+
   function closeRoutineEditor() {
     editingRoutine = null;
     document.getElementById("routine-editor").style.display = "none";
+    // Check if there are newly created routines that are entirely empty and user clicked cancel
+    savedRoutines = savedRoutines.filter(function(r) {
+      return r.id.indexOf("custom_") !== 0 || (r.exercises && r.exercises.length > 0) || r.title !== (t("new-routine-default-title") || "Neue Routine");
+    });
+    renderRoutines();
   }
 
   function renderEditorExercises() {
@@ -1297,6 +1331,23 @@
     
     ex.sets.push(newSet);
     renderEditorExercises();
+  }
+
+  function addExerciseToEditor() {
+    if (!editingRoutine) return;
+    if (!editingRoutine.exercises) editingRoutine.exercises = [];
+    
+    var newEx = {
+      index: editingRoutine.exercises.length,
+      name: t("new-exercise-default-name") || "Neue Übung",
+      sets: []
+    };
+    
+    editingRoutine.exercises.push(newEx);
+    renderEditorExercises();
+    
+    // Add one default set immediately
+    addSetToEditor(editingRoutine.exercises.length - 1);
   }
 
   function deleteSetFromEditor(exIdx, setIdx) {
