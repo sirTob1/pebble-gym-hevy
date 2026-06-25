@@ -117,6 +117,8 @@ static void exercise_menu_window_unload(Window *window);
 static void routine_menu_window_load(Window *window);
 static void routine_menu_window_unload(Window *window);
 static void timer_callback(void *data);
+static void workout_click_config_provider(void *context);
+static void edit_click_config_provider(void *context);
 
 // Send set logging data back to phone JS
 static void send_logged_set(int ex_idx, int set_idx, int reps, int weight, bool completed) {
@@ -614,6 +616,7 @@ static void workout_select_click_handler(ClickRecognizerRef recognizer, void *co
       }
     }
     s_edit_mode = EDIT_NONE;
+    window_set_click_config_provider(s_workout_window, workout_click_config_provider);
     layer_mark_dirty(s_workout_layer);
     vibes_short_pulse();
   } else {
@@ -704,6 +707,7 @@ static void workout_up_long_click_handler(ClickRecognizerRef recognizer, void *c
     s_edit_mode = EDIT_WEIGHT;
     s_edit_weight = active_set->weight;
   }
+  window_set_click_config_provider(s_workout_window, edit_click_config_provider);
   layer_mark_dirty(s_workout_layer);
   vibes_short_pulse();
 }
@@ -719,6 +723,7 @@ static void workout_down_long_click_handler(ClickRecognizerRef recognizer, void 
     s_edit_mode = EDIT_REPS;
     s_edit_reps = active_set->reps;
   }
+  window_set_click_config_provider(s_workout_window, edit_click_config_provider);
   layer_mark_dirty(s_workout_layer);
   vibes_short_pulse();
 }
@@ -727,6 +732,7 @@ static void workout_back_click_handler(ClickRecognizerRef recognizer, void *cont
   if (s_edit_mode != EDIT_NONE) {
     // Cancel editing
     s_edit_mode = EDIT_NONE;
+    window_set_click_config_provider(s_workout_window, workout_click_config_provider);
     layer_mark_dirty(s_workout_layer);
     vibes_short_pulse();
   } else if (s_rest_seconds_left > 0) {
@@ -761,6 +767,14 @@ static void workout_click_config_provider(void *context) {
   window_long_click_subscribe(BUTTON_ID_SELECT, 500, workout_select_long_click_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_UP, 600, workout_up_long_click_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_DOWN, 600, workout_down_long_click_handler, NULL);
+}
+
+// Click config provider for edit mode
+static void edit_click_config_provider(void *context) {
+  window_single_repeating_click_subscribe(BUTTON_ID_UP, 100, workout_up_click_handler);
+  window_single_repeating_click_subscribe(BUTTON_ID_DOWN, 100, workout_down_click_handler);
+  window_single_click_subscribe(BUTTON_ID_SELECT, workout_select_click_handler);
+  window_single_click_subscribe(BUTTON_ID_BACK, workout_back_click_handler);
 }
 
 // AppMessage inbox handler

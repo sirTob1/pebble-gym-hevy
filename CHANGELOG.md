@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Hold-to-Repeat Edit Mode:** You can now hold down the Up or Down buttons while editing weight or reps to continuously and quickly increase or decrease the values.
+
 ### Changed
 - **Workout UI:** Increased font size of top status bar (time and current set) and previous performance stats for better legibility. Adjusted layout to prevent overlap with set indicator dots.
 
