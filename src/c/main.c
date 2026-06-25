@@ -329,16 +329,16 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
   static char time_buf[8];
   clock_copy_time_string(time_buf, sizeof(time_buf));
   graphics_context_set_text_color(ctx, GColorDarkGray);
-  graphics_draw_text(ctx, time_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(6, header_h + 4, 38, 18),
+  graphics_draw_text(ctx, time_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(4, header_h + 2, 44, 24),
                      GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 
   // Draw Set Indices (e.g. "Satz 2/4" or "Set 2/4")
   static char set_idx_buf[16];
   snprintf(set_idx_buf, sizeof(set_idx_buf), translate("Satz %d/%d", "Set %d/%d"), s_current_set_idx + 1, active_ex->set_count);
   graphics_context_set_text_color(ctx, GColorDarkGray);
-  graphics_draw_text(ctx, set_idx_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(45, header_h + 4, bounds.size.w - 95, 18),
+  graphics_draw_text(ctx, set_idx_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(48, header_h + 2, bounds.size.w - 96, 24),
                      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
                      
   #if defined(PBL_HEALTH)
@@ -376,25 +376,25 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     divider_y1 = header_h + 16 + y_scale_offset + round_offset;
     divider_y2 = header_h + 50 + y_scale_offset + round_offset;
     prev_stats_y = 0; // Hide previous stats during rest to avoid overlap
-    progress_dot_y = header_h + 68 + (int)(y_scale_offset * 1.2) + round_offset;
+    progress_dot_y = header_h + 74 + (int)(y_scale_offset * 1.2) + round_offset;
     dot_r = 6;
   } else if (s_show_button_hints) {
     // Standard layout with helper footer
-    reps_val_y = header_h + 16 + y_scale_offset + round_offset;
-    reps_lbl_y = header_h + 60 + y_scale_offset + round_offset;
-    divider_y1 = header_h + 20 + y_scale_offset + round_offset;
-    divider_y2 = header_h + 56 + y_scale_offset + round_offset;
-    prev_stats_y = header_h + 76 + (int)(y_scale_offset * 1.5) + round_offset;
-    progress_dot_y = header_h + 97 + (int)(y_scale_offset * 1.5) + round_offset;
-    dot_r = 7;
+    reps_val_y = header_h + 12 + y_scale_offset + round_offset;
+    reps_lbl_y = header_h + 54 + y_scale_offset + round_offset;
+    divider_y1 = header_h + 16 + y_scale_offset + round_offset;
+    divider_y2 = header_h + 50 + y_scale_offset + round_offset;
+    prev_stats_y = header_h + 68 + (int)(y_scale_offset * 1.5) + round_offset;
+    progress_dot_y = header_h + 98 + (int)(y_scale_offset * 1.5) + round_offset;
+    dot_r = 6;
   } else {
     // Expanded layout without helper footer
-    reps_val_y = header_h + 20 + y_scale_offset + round_offset;
-    reps_lbl_y = header_h + 66 + y_scale_offset + round_offset;
-    divider_y1 = header_h + 24 + y_scale_offset + round_offset;
-    divider_y2 = header_h + 62 + y_scale_offset + round_offset;
-    prev_stats_y = header_h + 86 + (int)(y_scale_offset * 1.5) + round_offset;
-    progress_dot_y = header_h + 112 + (int)(y_scale_offset * 1.8) + round_offset;
+    reps_val_y = header_h + 16 + y_scale_offset + round_offset;
+    reps_lbl_y = header_h + 58 + y_scale_offset + round_offset;
+    divider_y1 = header_h + 20 + y_scale_offset + round_offset;
+    divider_y2 = header_h + 54 + y_scale_offset + round_offset;
+    prev_stats_y = header_h + 74 + (int)(y_scale_offset * 1.5) + round_offset;
+    progress_dot_y = header_h + 110 + (int)(y_scale_offset * 1.8) + round_offset;
     dot_r = 7;
   }
   
@@ -482,8 +482,8 @@ static void workout_layer_update_proc(Layer *layer, GContext *ctx) {
     snprintf(prev_buf, sizeof(prev_buf), translate("Letztes Mal: %d x %s", "Last time: %d x %s"), active_set->prev_reps, prev_weight_str);
     
     graphics_context_set_text_color(ctx, GColorDarkGray);
-    graphics_draw_text(ctx, prev_buf, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                       GRect(10, prev_stats_y, bounds.size.w - 20, 14),
+    graphics_draw_text(ctx, prev_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                       GRect(2, prev_stats_y, bounds.size.w - 4, 24),
                        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
   }
   

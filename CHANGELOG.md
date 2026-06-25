@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Workout UI:** Increased font size of top status bar (time and current set) and previous performance stats for better legibility. Adjusted layout to prevent overlap with set indicator dots.
+
 ## [3.2.0] - 2026-06-17
 
 ### Added
