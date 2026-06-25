@@ -6,13 +6,12 @@ Dieses Dokument legt die grundlegenden Vereinbarungen für die Zusammenarbeit un
 
 * **Kein Feature ohne User Story:** Für jedes zu entwickelnde Feature muss zwingend eine entsprechende User Story vorliegen.
 * **Sprachregelung:** Alle User Stories und die dazugehörigen Akzeptanzkriterien müssen **grundsätzlich auf Englisch** verfasst sein.
-* **Ablageort:** Die Anforderungen und User Stories werden direkt in diesem GitHub-Repository hinterlegt und gepflegt.
-
+* **Ablageort (GitHub Issues als Single Source of Truth):** Die User Stories werden **ausschließlich als GitHub Issues** in diesem GitHub-Repository angelegt und gepflegt. GitHub ist das absolut führende System für alle Anforderungen. User Stories werden *nicht* als Markdown-Dateien im Quellcode gespeichert.
 ---
 
 ## 2. Struktur einer User Story
 
-Jede User Story sollte folgendem Standard-Template folgen:
+Jedes GitHub Issue, das eine User Story darstellt, sollte folgendem Standard-Template in der Issue-Description folgen:
 
 ```markdown
 # US-[ID]: [Story Title]
