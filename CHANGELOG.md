@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-06-25
 
 ### Added
 - **Hold-to-Repeat Edit Mode:** You can now hold down the Up or Down buttons while editing weight or reps to continuously and quickly increase or decrease the values.
