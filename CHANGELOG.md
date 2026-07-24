@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [3.4.0] - 2026-07-24
+
+### Added
+- **Workout Persistence:** The active workout state is now continuously saved. If the Pebble app or phone companion app crashes, closes, or restarts, your workout will automatically resume exactly where you left off without losing any logged sets.
+
+### Fixed
+- **Stability Fixes:** Resolved critical bugs that caused intermittent watch app crashes (Use-After-Free memory leaks and window stack corruption) during menu navigation and background syncs.
+
 ## [3.3.0] - 2026-06-25
 
 ### Added
