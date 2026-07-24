@@ -983,6 +983,7 @@ static void sync_window_load(Window *window) {
 
 static void sync_window_unload(Window *window) {
   layer_destroy(s_sync_layer);
+  s_sync_layer = NULL;
 }
 
 
@@ -1033,6 +1034,7 @@ static void workout_window_unload(Window *window) {
   #endif
 
   layer_destroy(s_workout_layer);
+  s_workout_layer = NULL;
   s_workout_in_progress = false;
   s_expected_exercise_count = 0;
   s_exercise_count = 0;
@@ -1110,9 +1112,8 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
     send_workout_action(1); // 1 = FINISH
     s_workout_in_progress = false;
     
-    // Double pop to return to sync screen
-    window_stack_pop(false); // Pop Menu Layer
-    window_stack_pop(true);  // Pop Workout Window
+    // Pop all windows except the root (sync screen)
+    window_stack_pop_all(true);
     
     vibes_double_pulse();
   } else if (idx == s_exercise_count + 1) {
@@ -1120,8 +1121,8 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
     send_workout_action(2); // 2 = CANCEL
     s_workout_in_progress = false;
     
-    window_stack_pop(false); // Pop Menu Layer
-    window_stack_pop(true);  // Pop Workout Window
+    // Pop all windows except the root (sync screen)
+    window_stack_pop_all(true);
     
     vibes_short_pulse();
   }
@@ -1148,6 +1149,7 @@ static void exercise_menu_window_load(Window *window) {
 
 static void exercise_menu_window_unload(Window *window) {
   menu_layer_destroy(s_exercise_menu_layer);
+  s_exercise_menu_layer = NULL;
 }
 
 // Routine Selection Menu callbacks
@@ -1208,6 +1210,7 @@ static void routine_menu_window_load(Window *window) {
 
 static void routine_menu_window_unload(Window *window) {
   menu_layer_destroy(s_routine_menu_layer);
+  s_routine_menu_layer = NULL;
 }
 
 static void outbox_failed_handler(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
