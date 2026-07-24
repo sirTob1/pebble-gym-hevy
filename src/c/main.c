@@ -71,7 +71,103 @@ static int s_expected_exercise_count = 0;
 static int s_current_exercise_idx = 0;
 static int s_current_set_idx = 0;
 
+#define PERSIST_KEY_WORKOUT_STATE 199
+#define PERSIST_KEY_EXERCISE_BASE 200
+
+typedef struct {
+  int weight;
+  int reps;
+  int logged_weight;
+  int logged_reps;
+  int target_duration;
+  bool completed;
+  bool skipped;
+  bool is_timed;
+} PersistSetData;
+
+typedef struct {
+  PersistSetData sets[MAX_SETS_PER_EX];
+} PersistExerciseData;
+
+typedef struct {
+  bool in_progress;
+  char active_routine_id[64];
+  int current_ex_idx;
+  int current_set_idx;
+} PersistWorkoutState;
+
 static bool s_workout_in_progress = false;
+static bool s_restoring_persisted_workout = false;
+
+static void save_workout_state() {
+  if (!s_workout_in_progress) return;
+  
+  PersistWorkoutState state;
+  state.in_progress = true;
+  snprintf(state.active_routine_id, sizeof(state.active_routine_id), "%s", s_active_routine_id);
+  state.current_ex_idx = s_current_exercise_idx;
+  state.current_set_idx = s_current_set_idx;
+  persist_write_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+  
+  PersistExerciseData ex_data;
+  for (int i = 0; i < MAX_SETS_PER_EX; i++) {
+    ex_data.sets[i].weight = s_exercises[s_current_exercise_idx].sets[i].weight;
+    ex_data.sets[i].reps = s_exercises[s_current_exercise_idx].sets[i].reps;
+    ex_data.sets[i].logged_weight = s_exercises[s_current_exercise_idx].sets[i].logged_weight;
+    ex_data.sets[i].logged_reps = s_exercises[s_current_exercise_idx].sets[i].logged_reps;
+    ex_data.sets[i].target_duration = s_exercises[s_current_exercise_idx].sets[i].target_duration;
+    ex_data.sets[i].completed = s_exercises[s_current_exercise_idx].sets[i].completed;
+    ex_data.sets[i].skipped = s_exercises[s_current_exercise_idx].sets[i].skipped;
+    ex_data.sets[i].is_timed = s_exercises[s_current_exercise_idx].sets[i].is_timed;
+  }
+  persist_write_data(PERSIST_KEY_EXERCISE_BASE + s_current_exercise_idx, &ex_data, sizeof(ex_data));
+}
+
+static void clear_workout_state() {
+  PersistWorkoutState state;
+  state.in_progress = false;
+  persist_write_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+}
+
+static void init_workout_state() {
+  s_workout_in_progress = true;
+  PersistWorkoutState state;
+  state.in_progress = true;
+  snprintf(state.active_routine_id, sizeof(state.active_routine_id), "%s", s_active_routine_id);
+  state.current_ex_idx = s_current_exercise_idx;
+  state.current_set_idx = s_current_set_idx;
+  persist_write_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+  
+  for (int i = 0; i < MAX_EXERCISES; i++) {
+    persist_delete(PERSIST_KEY_EXERCISE_BASE + i);
+  }
+}
+
+static void restore_workout_progress_from_persist() {
+  PersistWorkoutState state;
+  if (persist_exists(PERSIST_KEY_WORKOUT_STATE)) {
+    persist_read_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+    s_current_exercise_idx = state.current_ex_idx;
+    s_current_set_idx = state.current_set_idx;
+    
+    for (int i = 0; i < s_exercise_count; i++) {
+      if (persist_exists(PERSIST_KEY_EXERCISE_BASE + i)) {
+        PersistExerciseData ex_data;
+        persist_read_data(PERSIST_KEY_EXERCISE_BASE + i, &ex_data, sizeof(ex_data));
+        for (int j = 0; j < s_exercises[i].set_count; j++) {
+          s_exercises[i].sets[j].weight = ex_data.sets[j].weight;
+          s_exercises[i].sets[j].reps = ex_data.sets[j].reps;
+          s_exercises[i].sets[j].logged_weight = ex_data.sets[j].logged_weight;
+          s_exercises[i].sets[j].logged_reps = ex_data.sets[j].logged_reps;
+          s_exercises[i].sets[j].target_duration = ex_data.sets[j].target_duration;
+          s_exercises[i].sets[j].completed = ex_data.sets[j].completed;
+          s_exercises[i].sets[j].skipped = ex_data.sets[j].skipped;
+          s_exercises[i].sets[j].is_timed = ex_data.sets[j].is_timed;
+        }
+      }
+    }
+  }
+}
 #if defined(PBL_HEALTH)
 static int s_current_heart_rate = 0;
 #endif
@@ -165,11 +261,12 @@ static void sync_window_appear(Window *window) {
     DictionaryIterator *iter;
     AppMessageResult result = app_message_outbox_begin(&iter);
     if (result == APP_MSG_OK && iter) {
-      dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, 3); // 3 = ACTIVATE_ROUTINE
+      uint8_t action = s_restoring_persisted_workout ? 5 : 3; // 5 = RESUME, 3 = ACTIVATE
+      dict_write_uint8(iter, MESSAGE_KEY_WORKOUT_ACTION, action);
       dict_write_cstring(iter, MESSAGE_KEY_ACTIVE_ROUTINE_ID, s_pending_routine_id_to_activate);
       AppMessageResult send_res = app_message_outbox_send();
       if (send_res == APP_MSG_OK) {
-        APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Sent activate request for routine: %s", s_pending_routine_id_to_activate);
+        APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Sent activate/resume request for routine: %s", s_pending_routine_id_to_activate);
       } else {
         APP_LOG(APP_LOG_LEVEL_WARNING, "PebbleGym: Outbox send failed (%d), retrying in 100ms...", send_res);
         app_timer_register(100, sync_window_appear_retry_callback, window);
@@ -574,6 +671,7 @@ static void workout_up_click_handler(ClickRecognizerRef recognizer, void *contex
     if (s_current_set_idx > 0) {
       s_current_set_idx--;
       layer_mark_dirty(s_workout_layer);
+      save_workout_state();
     }
   }
 }
@@ -596,6 +694,7 @@ static void workout_down_click_handler(ClickRecognizerRef recognizer, void *cont
     if (s_current_set_idx < active_ex->set_count - 1) {
       s_current_set_idx++;
       layer_mark_dirty(s_workout_layer);
+      save_workout_state();
     }
   }
 }
@@ -616,6 +715,7 @@ static void workout_select_click_handler(ClickRecognizerRef recognizer, void *co
       }
     }
     s_edit_mode = EDIT_NONE;
+    save_workout_state();
     window_set_click_config_provider(s_workout_window, workout_click_config_provider);
     layer_mark_dirty(s_workout_layer);
     vibes_short_pulse();
@@ -666,6 +766,7 @@ static void log_current_set(void) {
   if (s_current_set_idx < active_ex->set_count - 1) {
     s_current_set_idx++;
   }
+  save_workout_state();
   
   layer_mark_dirty(s_workout_layer);
 }
@@ -913,9 +1014,9 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
               s_expected_exercise_count = 0; // Reset expected count since sync is complete
               
               if (s_explicit_activation_requested) {
-                s_workout_in_progress = true;
                 s_current_exercise_idx = 0;
                 s_current_set_idx = 0;
+                init_workout_state();
                 s_edit_mode = EDIT_NONE;
                 s_rest_seconds_left = 0;
                 if (s_rest_timer) {
@@ -930,6 +1031,18 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
                 vibes_double_pulse();
                 
                 s_explicit_activation_requested = false;
+              } else if (s_restoring_persisted_workout) {
+                restore_workout_progress_from_persist();
+                s_restoring_persisted_workout = false;
+                s_workout_in_progress = true;
+                s_edit_mode = EDIT_NONE;
+                s_rest_seconds_left = 0;
+                if (s_rest_timer) {
+                  app_timer_cancel(s_rest_timer);
+                  s_rest_timer = NULL;
+                }
+                window_stack_push(s_workout_window, true);
+                vibes_double_pulse();
               } else {
                 // Just refresh the sync screen to show it's idle
                 layer_mark_dirty(s_sync_layer);
@@ -1091,6 +1204,7 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
   int idx = cell_index->row;
   
   if (idx < s_exercise_count) {
+    save_workout_state(); // Save current progress before changing index
     // Jump to selected exercise
     s_current_exercise_idx = idx;
     
@@ -1103,6 +1217,7 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
       }
     }
     s_current_set_idx = first_incomplete;
+    save_workout_state(); // Save new index
     
     // Pop menu and return to workout UI
     window_stack_pop(true);
@@ -1110,6 +1225,7 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
   } else if (idx == s_exercise_count) {
     // Finish Workout
     send_workout_action(1); // 1 = FINISH
+    clear_workout_state();
     s_workout_in_progress = false;
     
     // Pop all windows except the root (sync screen)
@@ -1119,6 +1235,7 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
   } else if (idx == s_exercise_count + 1) {
     // Cancel Workout (immediate discard)
     send_workout_action(2); // 2 = CANCEL
+    clear_workout_state();
     s_workout_in_progress = false;
     
     // Pop all windows except the root (sync screen)
@@ -1271,6 +1388,17 @@ static void init(void) {
   // Display initial waiting window
   window_stack_push(s_sync_window, true);
   
+  if (persist_exists(PERSIST_KEY_WORKOUT_STATE)) {
+    PersistWorkoutState state;
+    persist_read_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+    if (state.in_progress) {
+      s_restoring_persisted_workout = true;
+      snprintf(s_active_routine_id, sizeof(s_active_routine_id), "%s", state.active_routine_id);
+      snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", state.active_routine_id);
+      return; // sync_window_appear will automatically send the activate request
+    }
+  }
+
   // Request active routine sync on boot
   send_request_sync();
 }
