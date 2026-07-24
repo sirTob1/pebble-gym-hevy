@@ -392,6 +392,13 @@ function openConfigPage() {
 // Ready event
 Pebble.addEventListener("ready", function() {
   console.log("PebbleGym JS: Ready!");
+  try {
+    var savedLog = localStorage.getItem("activeWorkoutLog");
+    if (savedLog) {
+      activeWorkoutLog = JSON.parse(savedLog);
+      console.log("PebbleGym JS: Restored active workout log from previous session.");
+    }
+  } catch (e) {}
   sendRoutinesListToWatch();
 });
 
@@ -516,10 +523,14 @@ Pebble.addEventListener("appmessage", function(e) {
     sendRoutinesListToWatch();
   }
   
-  // Watch requests to activate a routine (3 = activate routine)
-  if (workoutAction === 3 && activeRoutineId !== undefined && activeRoutineId !== null) {
+  // Watch requests to activate a routine (3 = activate new, 5 = resume)
+  if ((workoutAction === 3 || workoutAction === 5) && activeRoutineId !== undefined && activeRoutineId !== null) {
     var routineId = activeRoutineId.toString();
-    console.log("PebbleGym JS: Watch requested to activate routine: " + routineId);
+    console.log("PebbleGym JS: Watch requested to activate/resume routine: " + routineId);
+    if (workoutAction === 3) {
+      activeWorkoutLog = null;
+      localStorage.removeItem("activeWorkoutLog");
+    }
     // Strip the 'id_' prefix if present
     if (routineId.indexOf("id_") === 0) {
       routineId = routineId.substring(3);
@@ -600,6 +611,8 @@ Pebble.addEventListener("appmessage", function(e) {
       status: status
     };
     
+    localStorage.setItem("activeWorkoutLog", JSON.stringify(activeWorkoutLog));
+    
     console.log("PebbleGym JS: Logged set " + setIdx + " of " + exLog.name + ": " + reps + " reps @ " + (weight/100) + " kg");
   }
   
@@ -619,9 +632,11 @@ Pebble.addEventListener("appmessage", function(e) {
       console.log("PebbleGym JS: Workout successfully saved to history.");
       
       activeWorkoutLog = null;
+      localStorage.removeItem("activeWorkoutLog");
     }
   } else if (workoutAction === 2) {
     console.log("PebbleGym JS: Workout cancelled, discarding log.");
     activeWorkoutLog = null;
+    localStorage.removeItem("activeWorkoutLog");
   }
 });
