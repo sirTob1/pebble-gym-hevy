@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-08-06
+
 ### Added
+- **App Logging:** Implemented an efficient logging mechanism accessible via the Settings Page to assist with debugging app crashes.
 - **Workout Confirmation:** Added a confirmation dialog when finishing or discarding a workout from the quick exercise menu to prevent accidental closures.
 
 ### Fixed
