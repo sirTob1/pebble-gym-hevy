@@ -3,6 +3,30 @@
 var syncQueue = [];
 var isSyncing = false;
 
+// Store original console.log and capture to persistent storage
+var originalConsoleLog = console.log;
+function appendToPersistentLog(msg) {
+  try {
+    var logs = localStorage.getItem("pebble_gym_logs") || "";
+    var timestamp = new Date().toLocaleTimeString([], {hour12: false});
+    var newLog = "[" + timestamp + "] " + msg + "\n";
+    logs += newLog;
+    // Keep max ~4000 characters to fit in URL query
+    if (logs.length > 4000) {
+      logs = logs.substring(logs.length - 4000);
+      var firstNewline = logs.indexOf("\n");
+      if (firstNewline !== -1) {
+        logs = logs.substring(firstNewline + 1);
+      }
+    }
+    localStorage.setItem("pebble_gym_logs", logs);
+  } catch (e) {}
+}
+console.log = function(msg) {
+  originalConsoleLog(msg);
+  appendToPersistentLog(msg);
+};
+
 // Hardcoded key mapping for runtimes like Gadgetbridge (ensuring we don't rely solely on injected globals)
 var myMessageKeys = {
   "ACTIVE_ROUTINE_ID": 10018,
@@ -27,7 +51,9 @@ var myMessageKeys = {
   "WORKOUT_ACTION": 10008,
   "IS_TIMED": 10020,
   "TARGET_DURATION": 10021,
-  "SHOW_BUTTON_HINTS": 10022
+  "SHOW_BUTTON_HINTS": 10022,
+  "APP_LOG_DATA": 10023,
+  "LOGGING_MODE": 10024
 };
 
 // Helper to duplicate payload keys (both string and integer) to ensure compatibility on Gadgetbridge and other runtimes
@@ -358,7 +384,8 @@ function sendRoutinesListToWatch() {
     ROUTINE_COUNT: routines.length,
     ACTIVE_ROUTINE_ID: "id_" + activeRoutineId,
     LANGUAGE: langCode,
-    SHOW_BUTTON_HINTS: showHints
+    SHOW_BUTTON_HINTS: showHints,
+    LOGGING_MODE: parseInt(localStorage.getItem("pebble_gym_logging_mode") || "0", 10)
   });
   
   // Send each routine header
@@ -378,12 +405,16 @@ function openConfigPage() {
   var routines = localStorage.getItem("saved_routines") || "[]";
   var history = localStorage.getItem("workout_history") || "[]";
   var activeId = localStorage.getItem("active_routine_id") || "";
+  var logs = localStorage.getItem("pebble_gym_logs") || "";
+  var logMode = localStorage.getItem("pebble_gym_logging_mode") || "0";
   
   var url = "https://sirtob1.github.io/pebble-gym-hevy/src/pkjs/config.html?v=" + Date.now() +
             "#" +
             "routines=" + encodeURIComponent(routines) +
             "&history=" + encodeURIComponent(history) +
-            "&active_id=" + encodeURIComponent(activeId);
+            "&active_id=" + encodeURIComponent(activeId) +
+            "&logging_mode=" + encodeURIComponent(logMode) +
+            "&logs=" + encodeURIComponent(logs);
             
   console.log("PebbleGym JS: Opening config page: " + url.substring(0, 150) + "...");
   Pebble.openURL(url);
@@ -437,6 +468,12 @@ Pebble.addEventListener("webviewclosed", function(e) {
       }
       if (settings.show_button_hints !== undefined) {
         localStorage.setItem("pebble_gym_show_hints", settings.show_button_hints);
+      }
+      if (settings.logging_mode !== undefined) {
+        localStorage.setItem("pebble_gym_logging_mode", settings.logging_mode);
+      }
+      if (settings.clear_logs === "true") {
+        localStorage.setItem("pebble_gym_logs", "");
       }
       
       // Handle background fetching of Hevy Link if provided
@@ -517,6 +554,11 @@ Pebble.addEventListener("appmessage", function(e) {
   var logReps = getDictionaryValue(dict, "LOG_REPS");
   var logWeight = getDictionaryValue(dict, "LOG_WEIGHT");
   var logStatus = getDictionaryValue(dict, "LOG_STATUS");
+  var appLogData = getDictionaryValue(dict, "APP_LOG_DATA");
+  
+  if (appLogData) {
+    console.log("WATCH: " + appLogData);
+  }
   
   // Watch requests workout sync
   if (workoutAction === 0) {

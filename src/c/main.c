@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <stdarg.h>
 
 #define MAX_EXERCISES 15
 #define MAX_SETS_PER_EX 8
@@ -98,6 +99,30 @@ typedef struct {
 
 static bool s_workout_in_progress = false;
 static bool s_restoring_persisted_workout = false;
+
+#define PERSIST_KEY_LOGGING_MODE 102
+static int s_logging_mode = 0;
+
+static void pg_log(uint8_t level, const char* src_filename, int src_line_number, const char* fmt, ...) {
+  char buffer[128];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  
+  app_log(level, src_filename, src_line_number, "%s", buffer);
+  
+  if (s_logging_mode == 2 || (s_logging_mode == 1 && s_workout_in_progress)) {
+    DictionaryIterator *iter;
+    if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
+      dict_write_cstring(iter, MESSAGE_KEY_APP_LOG_DATA, buffer);
+      app_message_outbox_send();
+    }
+  }
+}
+#undef APP_LOG
+#define APP_LOG(level, fmt, args...) pg_log(level, __FILE__, __LINE__, fmt, ## args)
+
 
 static void save_workout_state() {
   if (!s_workout_in_progress) return;
@@ -905,6 +930,13 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     if (s_workout_layer) layer_mark_dirty(s_workout_layer);
   }
 
+  // Check for logging mode update
+  Tuple *log_mode_t = dict_find(iter, MESSAGE_KEY_LOGGING_MODE);
+  if (log_mode_t) {
+    s_logging_mode = log_mode_t->value->int32;
+    persist_write_int(PERSIST_KEY_LOGGING_MODE, s_logging_mode);
+  }
+
   // 1. Sync start action: WORKOUT_ACTION=0
   Tuple *action_tuple = dict_find(iter, MESSAGE_KEY_WORKOUT_ACTION);
   if (action_tuple && action_tuple->value->uint8 == 0) {
@@ -1430,6 +1462,10 @@ static void init(void) {
     s_show_button_hints = persist_read_bool(PERSIST_KEY_SHOW_BUTTON_HINTS);
   } else {
     s_show_button_hints = true;
+  }
+  
+  if (persist_exists(PERSIST_KEY_LOGGING_MODE)) {
+    s_logging_mode = persist_read_int(PERSIST_KEY_LOGGING_MODE);
   }
 
   // Create Fonts

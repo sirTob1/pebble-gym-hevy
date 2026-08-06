@@ -43,7 +43,9 @@
       "LANGUAGE",
       "IS_TIMED",
       "TARGET_DURATION",
-      "SHOW_BUTTON_HINTS"
+      "SHOW_BUTTON_HINTS",
+      "APP_LOG_DATA",
+      "LOGGING_MODE"
     ],
     "resources": {
       "media": []
