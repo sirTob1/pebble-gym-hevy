@@ -1016,6 +1016,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
               if (s_explicit_activation_requested) {
                 s_current_exercise_idx = 0;
                 s_current_set_idx = 0;
+                snprintf(s_active_routine_id, sizeof(s_active_routine_id), "%s", s_pending_routine_id_to_activate);
                 init_workout_state();
                 s_edit_mode = EDIT_NONE;
                 s_rest_seconds_left = 0;
