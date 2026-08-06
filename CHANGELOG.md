@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Workout Confirmation:** Added a confirmation dialog when finishing or discarding a workout from the quick exercise menu to prevent accidental closures.
+
 ### Fixed
 - **Workout Persistence:** Fixed a bug where starting a workout on the watch would not correctly track the active routine ID, causing the app to load the wrong routine or fail to recover if the app crashed during a workout.
 

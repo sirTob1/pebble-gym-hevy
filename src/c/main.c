@@ -198,6 +198,10 @@ static MenuLayer *s_exercise_menu_layer;
 static Window *s_routine_menu_window = NULL;
 static MenuLayer *s_routine_menu_layer = NULL;
 
+static Window *s_confirm_window = NULL;
+static MenuLayer *s_confirm_menu_layer = NULL;
+static int s_pending_action = 0;
+
 // Fonts
 static GFont s_title_font;
 static GFont s_main_font;
@@ -1201,6 +1205,72 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
   }
 }
 
+// --- Confirmation Menu Callbacks ---
+static uint16_t confirm_menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
+  return 2;
+}
+
+static int16_t confirm_menu_get_header_height_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
+  return MENU_CELL_BASIC_HEADER_HEIGHT;
+}
+
+static void confirm_menu_draw_header_callback(GContext* ctx, const Layer *cell_layer, uint16_t section_index, void *data) {
+  if (s_pending_action == 1) {
+    menu_cell_basic_header_draw(ctx, cell_layer, translate("Wirklich beenden?", "Finish workout?"));
+  } else {
+    menu_cell_basic_header_draw(ctx, cell_layer, translate("Wirklich verwerfen?", "Discard workout?"));
+  }
+}
+
+static void confirm_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
+  if (cell_index->row == 0) {
+    menu_cell_basic_draw(ctx, cell_layer, translate("Ja", "Yes"), translate("Bestätigen", "Confirm"), NULL);
+  } else {
+    menu_cell_basic_draw(ctx, cell_layer, translate("Nein", "No"), translate("Zurück", "Go back"), NULL);
+  }
+}
+
+static void confirm_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
+  if (cell_index->row == 0) {
+    // Yes
+    if (s_pending_action == 1) {
+      send_workout_action(1); // FINISH
+      vibes_double_pulse();
+    } else {
+      send_workout_action(2); // CANCEL
+      vibes_short_pulse();
+    }
+    clear_workout_state();
+    s_workout_in_progress = false;
+    window_stack_pop_all(true);
+  } else {
+    // No
+    window_stack_pop(true);
+  }
+}
+
+static void confirm_window_load(Window *window) {
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(window_layer);
+  
+  s_confirm_menu_layer = menu_layer_create(bounds);
+  menu_layer_set_callbacks(s_confirm_menu_layer, NULL, (MenuLayerCallbacks){
+    .get_num_rows = confirm_menu_get_num_rows_callback,
+    .get_header_height = confirm_menu_get_header_height_callback,
+    .draw_header = confirm_menu_draw_header_callback,
+    .draw_row = confirm_menu_draw_row_callback,
+    .select_click = confirm_menu_select_callback,
+  });
+  
+  menu_layer_set_click_config_onto_window(s_confirm_menu_layer, window);
+  layer_add_child(window_layer, menu_layer_get_layer(s_confirm_menu_layer));
+}
+
+static void confirm_window_unload(Window *window) {
+  menu_layer_destroy(s_confirm_menu_layer);
+  s_confirm_menu_layer = NULL;
+}
+
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   int idx = cell_index->row;
   
@@ -1224,25 +1294,27 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
     window_stack_pop(true);
     layer_mark_dirty(s_workout_layer);
   } else if (idx == s_exercise_count) {
-    // Finish Workout
-    send_workout_action(1); // 1 = FINISH
-    clear_workout_state();
-    s_workout_in_progress = false;
-    
-    // Pop all windows except the root (sync screen)
-    window_stack_pop_all(true);
-    
-    vibes_double_pulse();
+    // Finish Workout -> Push confirm window
+    s_pending_action = 1;
+    if (!s_confirm_window) {
+      s_confirm_window = window_create();
+      window_set_window_handlers(s_confirm_window, (WindowHandlers) {
+        .load = confirm_window_load,
+        .unload = confirm_window_unload
+      });
+    }
+    window_stack_push(s_confirm_window, true);
   } else if (idx == s_exercise_count + 1) {
-    // Cancel Workout (immediate discard)
-    send_workout_action(2); // 2 = CANCEL
-    clear_workout_state();
-    s_workout_in_progress = false;
-    
-    // Pop all windows except the root (sync screen)
-    window_stack_pop_all(true);
-    
-    vibes_short_pulse();
+    // Cancel Workout -> Push confirm window
+    s_pending_action = 2;
+    if (!s_confirm_window) {
+      s_confirm_window = window_create();
+      window_set_window_handlers(s_confirm_window, (WindowHandlers) {
+        .load = confirm_window_load,
+        .unload = confirm_window_unload
+      });
+    }
+    window_stack_push(s_confirm_window, true);
   }
 }
 
@@ -1412,6 +1484,9 @@ static void deinit(void) {
   }
   if (s_routine_menu_window) {
     window_destroy(s_routine_menu_window);
+  }
+  if (s_confirm_window) {
+    window_destroy(s_confirm_window);
   }
 }
 
