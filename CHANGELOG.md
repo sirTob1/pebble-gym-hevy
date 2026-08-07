@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Workout Persistence Crash:** Fixed a memory limit bug in the persistent storage structs that caused workout session progress to silently fail to save and subsequently be lost if the app crashed.
+
 ## [3.5.0] - 2026-08-06
 
 ### Added
