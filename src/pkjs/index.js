@@ -5,11 +5,15 @@ var isSyncing = false;
 
 // Store original console.log and capture to persistent storage
 var originalConsoleLog = console.log;
-function appendToPersistentLog(msg) {
+var originalConsoleInfo = console.info || console.log;
+var originalConsoleWarn = console.warn || console.log;
+var originalConsoleError = console.error || console.log;
+
+function appendToPersistentLog(level, msg) {
   try {
     var logs = localStorage.getItem("pebble_gym_logs") || "";
     var timestamp = new Date().toLocaleTimeString([], {hour12: false});
-    var newLog = "[" + timestamp + "] " + msg + "\n";
+    var newLog = "[" + timestamp + "] [" + level + "] " + msg + "\n";
     logs += newLog;
     // Keep max ~4000 characters to fit in URL query
     if (logs.length > 4000) {
@@ -24,7 +28,19 @@ function appendToPersistentLog(msg) {
 }
 console.log = function(msg) {
   originalConsoleLog(msg);
-  appendToPersistentLog(msg);
+  appendToPersistentLog("INFO", msg);
+};
+console.info = function(msg) {
+  originalConsoleInfo(msg);
+  appendToPersistentLog("INFO", msg);
+};
+console.warn = function(msg) {
+  originalConsoleWarn(msg);
+  appendToPersistentLog("WARN", msg);
+};
+console.error = function(msg) {
+  originalConsoleError(msg);
+  appendToPersistentLog("ERROR", msg);
 };
 
 // Hardcoded key mapping for runtimes like Gadgetbridge (ensuring we don't rely solely on injected globals)

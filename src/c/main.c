@@ -105,9 +105,15 @@ static int s_logging_mode = 0;
 
 #define PG_LOG(level, fmt, args...) \
   do { \
+    const char *level_str = "INFO"; \
+    if (level == APP_LOG_LEVEL_ERROR) level_str = "ERROR"; \
+    else if (level == APP_LOG_LEVEL_WARNING) level_str = "WARN"; \
+    else if (level == APP_LOG_LEVEL_DEBUG || level == APP_LOG_LEVEL_DEBUG_VERBOSE) level_str = "DEBUG"; \
+    char msg_buffer[100]; \
+    snprintf(msg_buffer, sizeof(msg_buffer), fmt, ## args); \
     char buffer[128]; \
-    snprintf(buffer, sizeof(buffer), fmt, ## args); \
-    app_log(level, __FILE__, __LINE__, "%s", buffer); \
+    snprintf(buffer, sizeof(buffer), "[%s] %s", level_str, msg_buffer); \
+    app_log(level, __FILE__, __LINE__, "%s", msg_buffer); \
     if (s_logging_mode == 2 || (s_logging_mode == 1 && s_workout_in_progress)) { \
       DictionaryIterator *iter; \
       if (app_message_outbox_begin(&iter) == APP_MSG_OK) { \
