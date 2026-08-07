@@ -72,29 +72,29 @@ static int s_expected_exercise_count = 0;
 static int s_current_exercise_idx = 0;
 static int s_current_set_idx = 0;
 
-#define PERSIST_KEY_WORKOUT_STATE 199
-#define PERSIST_KEY_EXERCISE_BASE 200
+#define PERSIST_KEY_WORKOUT_STATE 1990
+#define PERSIST_KEY_EXERCISE_BASE 2000
 
-typedef struct {
-  int weight;
-  int reps;
-  int logged_weight;
-  int logged_reps;
-  int target_duration;
-  bool completed;
-  bool skipped;
-  bool is_timed;
+typedef struct __attribute__((__packed__)) {
+  int32_t weight;
+  int16_t reps;
+  int32_t logged_weight;
+  int16_t logged_reps;
+  int16_t target_duration;
+  uint8_t completed;
+  uint8_t skipped;
+  uint8_t is_timed;
 } PersistSetData;
 
-typedef struct {
+typedef struct __attribute__((__packed__)) {
   PersistSetData sets[MAX_SETS_PER_EX];
 } PersistExerciseData;
 
-typedef struct {
-  bool in_progress;
+typedef struct __attribute__((__packed__)) {
+  uint8_t in_progress;
   char active_routine_id[64];
-  int current_ex_idx;
-  int current_set_idx;
+  int16_t current_ex_idx;
+  int16_t current_set_idx;
 } PersistWorkoutState;
 
 static bool s_workout_in_progress = false;
@@ -103,38 +103,38 @@ static bool s_restoring_persisted_workout = false;
 #define PERSIST_KEY_LOGGING_MODE 102
 static int s_logging_mode = 0;
 
-static void pg_log(uint8_t level, const char* src_filename, int src_line_number, const char* fmt, ...) {
-  char buffer[128];
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(buffer, sizeof(buffer), fmt, args);
-  va_end(args);
-  
-  app_log(level, src_filename, src_line_number, "%s", buffer);
-  
-  if (s_logging_mode == 2 || (s_logging_mode == 1 && s_workout_in_progress)) {
-    DictionaryIterator *iter;
-    if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
-      dict_write_cstring(iter, MESSAGE_KEY_APP_LOG_DATA, buffer);
-      app_message_outbox_send();
-    }
-  }
-}
+#define PG_LOG(level, fmt, args...) \
+  do { \
+    char buffer[128]; \
+    snprintf(buffer, sizeof(buffer), fmt, ## args); \
+    app_log(level, __FILE__, __LINE__, "%s", buffer); \
+    if (s_logging_mode == 2 || (s_logging_mode == 1 && s_workout_in_progress)) { \
+      DictionaryIterator *iter; \
+      if (app_message_outbox_begin(&iter) == APP_MSG_OK) { \
+        dict_write_cstring(iter, MESSAGE_KEY_APP_LOG_DATA, buffer); \
+        app_message_outbox_send(); \
+      } \
+    } \
+  } while(0)
+
 #undef APP_LOG
-#define APP_LOG(level, fmt, args...) pg_log(level, __FILE__, __LINE__, fmt, ## args)
+#define APP_LOG(level, fmt, args...) PG_LOG(level, fmt, ## args)
 
 
 static void save_workout_state() {
   if (!s_workout_in_progress) return;
   
   PersistWorkoutState state;
-  state.in_progress = true;
+  memset(&state, 0, sizeof(state));
+  state.in_progress = 1;
   snprintf(state.active_routine_id, sizeof(state.active_routine_id), "%s", s_active_routine_id);
   state.current_ex_idx = s_current_exercise_idx;
   state.current_set_idx = s_current_set_idx;
-  persist_write_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+  int res1 = persist_write_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+  if (res1 < 0) APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Failed to persist state (err %d)", res1);
   
   PersistExerciseData ex_data;
+  memset(&ex_data, 0, sizeof(ex_data));
   for (int i = 0; i < MAX_SETS_PER_EX; i++) {
     ex_data.sets[i].weight = s_exercises[s_current_exercise_idx].sets[i].weight;
     ex_data.sets[i].reps = s_exercises[s_current_exercise_idx].sets[i].reps;
@@ -145,19 +145,22 @@ static void save_workout_state() {
     ex_data.sets[i].skipped = s_exercises[s_current_exercise_idx].sets[i].skipped;
     ex_data.sets[i].is_timed = s_exercises[s_current_exercise_idx].sets[i].is_timed;
   }
-  persist_write_data(PERSIST_KEY_EXERCISE_BASE + s_current_exercise_idx, &ex_data, sizeof(ex_data));
+  int res2 = persist_write_data(PERSIST_KEY_EXERCISE_BASE + s_current_exercise_idx, &ex_data, sizeof(ex_data));
+  if (res2 < 0) APP_LOG(APP_LOG_LEVEL_ERROR, "PebbleGym: Failed to persist ex %d (err %d)", s_current_exercise_idx, res2);
 }
 
 static void clear_workout_state() {
   PersistWorkoutState state;
-  state.in_progress = false;
+  memset(&state, 0, sizeof(state));
+  state.in_progress = 0;
   persist_write_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
 }
 
 static void init_workout_state() {
   s_workout_in_progress = true;
   PersistWorkoutState state;
-  state.in_progress = true;
+  memset(&state, 0, sizeof(state));
+  state.in_progress = 1;
   snprintf(state.active_routine_id, sizeof(state.active_routine_id), "%s", s_active_routine_id);
   state.current_ex_idx = s_current_exercise_idx;
   state.current_set_idx = s_current_set_idx;
@@ -170,6 +173,7 @@ static void init_workout_state() {
 
 static void restore_workout_progress_from_persist() {
   PersistWorkoutState state;
+  memset(&state, 0, sizeof(state));
   if (persist_exists(PERSIST_KEY_WORKOUT_STATE)) {
     persist_read_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
     s_current_exercise_idx = state.current_ex_idx;
@@ -178,6 +182,7 @@ static void restore_workout_progress_from_persist() {
     for (int i = 0; i < s_exercise_count; i++) {
       if (persist_exists(PERSIST_KEY_EXERCISE_BASE + i)) {
         PersistExerciseData ex_data;
+        memset(&ex_data, 0, sizeof(ex_data));
         persist_read_data(PERSIST_KEY_EXERCISE_BASE + i, &ex_data, sizeof(ex_data));
         for (int j = 0; j < s_exercises[i].set_count; j++) {
           s_exercises[i].sets[j].weight = ex_data.sets[j].weight;
@@ -1499,6 +1504,7 @@ static void init(void) {
   
   if (persist_exists(PERSIST_KEY_WORKOUT_STATE)) {
     PersistWorkoutState state;
+    memset(&state, 0, sizeof(state));
     persist_read_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
     if (state.in_progress) {
       s_restoring_persisted_workout = true;
