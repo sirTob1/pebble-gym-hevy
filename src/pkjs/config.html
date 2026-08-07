@@ -562,6 +562,17 @@
       <span id="title-app-logs">App Logs</span>
       <button class="list-btn" id="btn-download-logs" style="font-size: 11px; padding: 4px 8px;" onclick="downloadLogs()">Download</button>
     </div>
+    <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 13px;">
+      <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+        <input type="checkbox" id="filter-log-info" checked onchange="applyLogFilters()" style="accent-color: var(--accent);"> Info
+      </label>
+      <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+        <input type="checkbox" id="filter-log-warn" checked onchange="applyLogFilters()" style="accent-color: var(--accent);"> Warning
+      </label>
+      <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+        <input type="checkbox" id="filter-log-error" checked onchange="applyLogFilters()" style="accent-color: var(--accent);"> Error
+      </label>
+    </div>
     <textarea id="app-logs-view" rows="8" readonly style="width: 100%; font-family: monospace; font-size: 10px; background-color: #08080c; border: 1px solid var(--card-border); color: var(--text-color); padding: 8px; border-radius: 8px; margin-bottom: 15px;"></textarea>
     <button class="btn btn-secondary btn-danger" id="btn-clear-logs" style="padding: 8px; font-size: 13px;" onclick="clearLogs()">Logs löschen</button>
   </div>
@@ -584,6 +595,7 @@
   var restTime = "90";
   var language = "de";
   var clearLogsRequested = false;
+  var fullLogsStr = "";
   
   var translations = {
     de: {
@@ -819,10 +831,17 @@
     
     var logsStr = getQueryOrHashParam("logs");
     if (logsStr) {
-      document.getElementById("app-logs-view").value = logsStr;
-      // scroll to bottom
-      var logTextarea = document.getElementById("app-logs-view");
-      logTextarea.scrollTop = logTextarea.scrollHeight;
+      fullLogsStr = logsStr;
+      
+      var filterInfo = localStorage.getItem("pebble_gym_log_filter_info");
+      var filterWarn = localStorage.getItem("pebble_gym_log_filter_warn");
+      var filterError = localStorage.getItem("pebble_gym_log_filter_error");
+      
+      document.getElementById("filter-log-info").checked = (filterInfo !== "false");
+      document.getElementById("filter-log-warn").checked = (filterWarn !== "false");
+      document.getElementById("filter-log-error").checked = (filterError !== "false");
+
+      applyLogFilters();
     }
     
     var logModeStr = getQueryOrHashParam("logging_mode");
@@ -1599,6 +1618,40 @@
     var responseStr = encodeURIComponent(JSON.stringify(response));
     console.log("PebbleGym Config: Sending response to watch: " + responseStr.substring(0, 150));
     window.location.href = "pebblejs://close#" + responseStr;
+  }
+
+  function applyLogFilters() {
+    var showInfo = document.getElementById("filter-log-info").checked;
+    var showWarn = document.getElementById("filter-log-warn").checked;
+    var showError = document.getElementById("filter-log-error").checked;
+
+    localStorage.setItem("pebble_gym_log_filter_info", showInfo);
+    localStorage.setItem("pebble_gym_log_filter_warn", showWarn);
+    localStorage.setItem("pebble_gym_log_filter_error", showError);
+
+    var lines = fullLogsStr.split("\n");
+    var filteredLines = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line) continue;
+      var hasInfo = line.indexOf("[INFO]") !== -1;
+      var hasWarn = line.indexOf("[WARN]") !== -1;
+      var hasError = line.indexOf("[ERROR]") !== -1;
+      var hasDebug = line.indexOf("[DEBUG]") !== -1;
+      
+      var hasNoMarker = !hasInfo && !hasWarn && !hasError && !hasDebug;
+      
+      if ((hasInfo && showInfo) || 
+          (hasWarn && showWarn) || 
+          (hasError && showError) || 
+          (hasDebug && showInfo) || // Show debug if Info is enabled for now
+          (hasNoMarker)) {
+        filteredLines.push(line);
+      }
+    }
+    var logTextarea = document.getElementById("app-logs-view");
+    logTextarea.value = filteredLines.join("\n");
+    logTextarea.scrollTop = logTextarea.scrollHeight;
   }
 
   // Initialize page

@@ -22,6 +22,8 @@ PebbleGym brings your fitness routines directly to your wrist. Compatible with a
 *   ✏️ **Inline Weight & Reps Editor**: Long press the *Up* or *Down* buttons to dynamically tweak weight (+/- 2.5 kg/lbs) or reps (+/- 1) directly on the watch screen for the current set.
 *   ⏱️ **Rest Timer & Haptics**: Triggers a customizable rest timer (60s, 90s, 120s, etc.) with a sleek progress bar. The watch double-pulses haptically when rest is finished.
 *   💾 **Unlimited History & CSV Export**: The phone companion caches all completed workouts in `localStorage`, bypassing the watch's 4KB persistent storage limit. Export history into standard `.csv` spreadsheet files anytime.
+*   🛡️ **Workout Persistence & Crash Recovery**: The active workout state is continuously saved. If the app closes or crashes, you can resume exactly where you left off without losing any logged sets.
+*   ✅ **Workout Confirmation Dialog**: A safety prompt prevents accidental closure of your workout session from the quick exercise menu.
 
 ---
 
