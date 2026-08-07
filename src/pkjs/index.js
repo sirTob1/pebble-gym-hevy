@@ -3,45 +3,6 @@
 var syncQueue = [];
 var isSyncing = false;
 
-// Store original console.log and capture to persistent storage
-var originalConsoleLog = console.log;
-var originalConsoleInfo = console.info || console.log;
-var originalConsoleWarn = console.warn || console.log;
-var originalConsoleError = console.error || console.log;
-
-function appendToPersistentLog(level, msg) {
-  try {
-    var logs = localStorage.getItem("pebble_gym_logs") || "";
-    var timestamp = new Date().toLocaleTimeString([], {hour12: false});
-    var newLog = "[" + timestamp + "] [" + level + "] " + msg + "\n";
-    logs += newLog;
-    // Keep max ~4000 characters to fit in URL query
-    if (logs.length > 4000) {
-      logs = logs.substring(logs.length - 4000);
-      var firstNewline = logs.indexOf("\n");
-      if (firstNewline !== -1) {
-        logs = logs.substring(firstNewline + 1);
-      }
-    }
-    localStorage.setItem("pebble_gym_logs", logs);
-  } catch (e) {}
-}
-console.log = function(msg) {
-  originalConsoleLog(msg);
-  appendToPersistentLog("INFO", msg);
-};
-console.info = function(msg) {
-  originalConsoleInfo(msg);
-  appendToPersistentLog("INFO", msg);
-};
-console.warn = function(msg) {
-  originalConsoleWarn(msg);
-  appendToPersistentLog("WARN", msg);
-};
-console.error = function(msg) {
-  originalConsoleError(msg);
-  appendToPersistentLog("ERROR", msg);
-};
 
 // Hardcoded key mapping for runtimes like Gadgetbridge (ensuring we don't rely solely on injected globals)
 var myMessageKeys = {
@@ -67,9 +28,7 @@ var myMessageKeys = {
   "WORKOUT_ACTION": 10008,
   "IS_TIMED": 10020,
   "TARGET_DURATION": 10021,
-  "SHOW_BUTTON_HINTS": 10022,
-  "APP_LOG_DATA": 10023,
-  "LOGGING_MODE": 10024
+  "SHOW_BUTTON_HINTS": 10022
 };
 
 // Helper to duplicate payload keys (both string and integer) to ensure compatibility on Gadgetbridge and other runtimes
@@ -400,8 +359,7 @@ function sendRoutinesListToWatch() {
     ROUTINE_COUNT: routines.length,
     ACTIVE_ROUTINE_ID: "id_" + activeRoutineId,
     LANGUAGE: langCode,
-    SHOW_BUTTON_HINTS: showHints,
-    LOGGING_MODE: parseInt(localStorage.getItem("pebble_gym_logging_mode") || "0", 10)
+    SHOW_BUTTON_HINTS: showHints
   });
   
   // Send each routine header
@@ -421,16 +379,11 @@ function openConfigPage() {
   var routines = localStorage.getItem("saved_routines") || "[]";
   var history = localStorage.getItem("workout_history") || "[]";
   var activeId = localStorage.getItem("active_routine_id") || "";
-  var logs = localStorage.getItem("pebble_gym_logs") || "";
-  var logMode = localStorage.getItem("pebble_gym_logging_mode") || "0";
-  
   var url = "https://sirtob1.github.io/pebble-gym-hevy/src/pkjs/config.html?v=" + Date.now() +
             "#" +
             "routines=" + encodeURIComponent(routines) +
             "&history=" + encodeURIComponent(history) +
-            "&active_id=" + encodeURIComponent(activeId) +
-            "&logging_mode=" + encodeURIComponent(logMode) +
-            "&logs=" + encodeURIComponent(logs);
+            "&active_id=" + encodeURIComponent(activeId);
             
   console.log("PebbleGym JS: Opening config page: " + url.substring(0, 150) + "...");
   Pebble.openURL(url);
@@ -485,13 +438,7 @@ Pebble.addEventListener("webviewclosed", function(e) {
       if (settings.show_button_hints !== undefined) {
         localStorage.setItem("pebble_gym_show_hints", settings.show_button_hints);
       }
-      if (settings.logging_mode !== undefined) {
-        localStorage.setItem("pebble_gym_logging_mode", settings.logging_mode);
-      }
-      if (settings.clear_logs === "true") {
-        localStorage.setItem("pebble_gym_logs", "");
-      }
-      
+
       // Handle background fetching of Hevy Link if provided
       if (settings.hevy_link) {
         console.log("PebbleGym JS: Fetching pending Hevy Link in background: " + settings.hevy_link);
@@ -570,12 +517,7 @@ Pebble.addEventListener("appmessage", function(e) {
   var logReps = getDictionaryValue(dict, "LOG_REPS");
   var logWeight = getDictionaryValue(dict, "LOG_WEIGHT");
   var logStatus = getDictionaryValue(dict, "LOG_STATUS");
-  var appLogData = getDictionaryValue(dict, "APP_LOG_DATA");
-  
-  if (appLogData) {
-    console.log("WATCH: " + appLogData);
-  }
-  
+
   // Watch requests workout sync
   if (workoutAction === 0) {
     sendRoutinesListToWatch();

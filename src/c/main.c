@@ -100,32 +100,6 @@ typedef struct __attribute__((__packed__)) {
 static bool s_workout_in_progress = false;
 static bool s_restoring_persisted_workout = false;
 
-#define PERSIST_KEY_LOGGING_MODE 102
-static int s_logging_mode = 0;
-
-#define PG_LOG(level, fmt, args...) \
-  do { \
-    const char *level_str = "INFO"; \
-    if (level == APP_LOG_LEVEL_ERROR) level_str = "ERROR"; \
-    else if (level == APP_LOG_LEVEL_WARNING) level_str = "WARN"; \
-    else if (level == APP_LOG_LEVEL_DEBUG || level == APP_LOG_LEVEL_DEBUG_VERBOSE) level_str = "DEBUG"; \
-    char msg_buffer[100]; \
-    snprintf(msg_buffer, sizeof(msg_buffer), fmt, ## args); \
-    char buffer[128]; \
-    snprintf(buffer, sizeof(buffer), "[%s] %s", level_str, msg_buffer); \
-    app_log(level, __FILE__, __LINE__, "%s", msg_buffer); \
-    if (s_logging_mode == 2 || (s_logging_mode == 1 && s_workout_in_progress)) { \
-      DictionaryIterator *iter; \
-      if (app_message_outbox_begin(&iter) == APP_MSG_OK) { \
-        dict_write_cstring(iter, MESSAGE_KEY_APP_LOG_DATA, buffer); \
-        app_message_outbox_send(); \
-      } \
-    } \
-  } while(0)
-
-#undef APP_LOG
-#define APP_LOG(level, fmt, args...) PG_LOG(level, fmt, ## args)
-
 
 static void save_workout_state() {
   if (!s_workout_in_progress) return;
@@ -941,13 +915,6 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     if (s_workout_layer) layer_mark_dirty(s_workout_layer);
   }
 
-  // Check for logging mode update
-  Tuple *log_mode_t = dict_find(iter, MESSAGE_KEY_LOGGING_MODE);
-  if (log_mode_t) {
-    s_logging_mode = log_mode_t->value->int32;
-    persist_write_int(PERSIST_KEY_LOGGING_MODE, s_logging_mode);
-  }
-
   // 1. Sync start action: WORKOUT_ACTION=0
   Tuple *action_tuple = dict_find(iter, MESSAGE_KEY_WORKOUT_ACTION);
   if (action_tuple && action_tuple->value->uint8 == 0) {
@@ -1475,9 +1442,6 @@ static void init(void) {
     s_show_button_hints = true;
   }
   
-  if (persist_exists(PERSIST_KEY_LOGGING_MODE)) {
-    s_logging_mode = persist_read_int(PERSIST_KEY_LOGGING_MODE);
-  }
 
   // Create Fonts
   s_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
