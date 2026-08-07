@@ -1575,6 +1575,7 @@
   function clearLogs() {
     if (confirm(language === "de" ? "Alle Logs löschen?" : "Clear all logs?")) {
       document.getElementById("app-logs-view").value = "";
+      fullLogsStr = "";
       clearLogsRequested = true;
     }
   }

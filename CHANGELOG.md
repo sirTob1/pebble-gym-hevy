@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **App Logging:** Fixed an issue where the "Clear Logs" button in the Settings Page did not correctly clear the logs from the internal UI state, causing them to reappear when changing log filters. (Closes #41)
 - **Workout Persistence Crash:** Fixed a memory limit bug in the persistent storage structs that caused workout session progress to silently fail to save and subsequently be lost if the app crashed.
 
 ## [3.5.0] - 2026-08-06
