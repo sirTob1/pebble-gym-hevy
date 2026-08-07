@@ -546,35 +546,6 @@
       <label for="show-hints" id="label-show-hints" style="margin-bottom: 0; cursor: pointer; flex-grow: 1;">Tastenhilfe auf der Uhr anzeigen</label>
       <input type="checkbox" id="show-hints" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);">
     </div>
-    <div class="form-group" style="margin-top: 15px;">
-      <label for="logging-mode" id="label-logging-mode">App Logging (Fehlersuche)</label>
-      <select id="logging-mode">
-        <option value="0" id="log-off">Aus</option>
-        <option value="1" id="log-workout">Nur während Workout</option>
-        <option value="2" id="log-continuous">Kontinuierlich</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- Section 5: App Logs -->
-  <div class="card">
-    <div class="card-title">
-      <span id="title-app-logs">App Logs</span>
-      <button class="list-btn" id="btn-download-logs" style="font-size: 11px; padding: 4px 8px;" onclick="downloadLogs()">Download</button>
-    </div>
-    <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 13px;">
-      <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-        <input type="checkbox" id="filter-log-info" checked onchange="applyLogFilters()" style="accent-color: var(--accent);"> Info
-      </label>
-      <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-        <input type="checkbox" id="filter-log-warn" checked onchange="applyLogFilters()" style="accent-color: var(--accent);"> Warning
-      </label>
-      <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-        <input type="checkbox" id="filter-log-error" checked onchange="applyLogFilters()" style="accent-color: var(--accent);"> Error
-      </label>
-    </div>
-    <textarea id="app-logs-view" rows="8" readonly style="width: 100%; font-family: monospace; font-size: 10px; background-color: #08080c; border: 1px solid var(--card-border); color: var(--text-color); padding: 8px; border-radius: 8px; margin-bottom: 15px;"></textarea>
-    <button class="btn btn-secondary btn-danger" id="btn-clear-logs" style="padding: 8px; font-size: 13px;" onclick="clearLogs()">Logs löschen</button>
   </div>
 </div>
 
@@ -594,8 +565,7 @@
   var weightUnit = "kg";
   var restTime = "90";
   var language = "de";
-  var clearLogsRequested = false;
-  var fullLogsStr = "";
+
   
   var translations = {
     de: {
@@ -623,13 +593,7 @@
       "label-rest-time": "Standard Pausenzeit (Sekunden)",
       "label-auto-reload": "Pläne vor dem Start über Hevy Link aktualisieren",
       "label-show-hints": "Tastenhilfe auf der Uhr anzeigen",
-      "label-logging-mode": "App Logging (Fehlersuche)",
-      "log-off": "Aus",
-      "log-workout": "Nur während Workout",
-      "log-continuous": "Kontinuierlich",
-      "title-app-logs": "App Logs",
-      "btn-download-logs": "Download",
-      "btn-clear-logs": "Logs löschen",
+
       "save-btn": "Speichern & Schließen",
       // Option translations:
       "confirm-delete-routine": "Routine '{title}' wirklich löschen?",
@@ -695,13 +659,7 @@
       "label-rest-time": "Default Rest Time (Seconds)",
       "label-auto-reload": "Update routines via Hevy link before starting",
       "label-show-hints": "Show Button Hints on Watch",
-      "label-logging-mode": "App Logging (Debugging)",
-      "log-off": "Off",
-      "log-workout": "Workout Active Only",
-      "log-continuous": "Continuous",
-      "title-app-logs": "App Logs",
-      "btn-download-logs": "Download",
-      "btn-clear-logs": "Clear Logs",
+
       "save-btn": "Save & Close",
       // Option translations:
       "confirm-delete-routine": "Really delete routine '{title}'?",
@@ -765,7 +723,7 @@
       "label-raw-data", "btn-import-raw", "preview-title-text", "title-my-routines",
       "no-routines-text", "title-history", "btn-export-csv", "no-history-text",
       "btn-clear-history", "title-settings", "label-language-select", "label-weight-unit",
-      "weight-unit-kg", "weight-unit-lbs", "label-rest-time", "label-auto-reload", "label-show-hints", "label-logging-mode", "log-off", "log-workout", "log-continuous", "title-app-logs", "btn-download-logs", "btn-clear-logs", "save-btn",
+      "weight-unit-kg", "weight-unit-lbs", "label-rest-time", "label-auto-reload", "label-show-hints", "save-btn",
       "editor-title-text", "label-edit-routine-title", "btn-editor-save", "btn-editor-cancel",
       "btn-create-routine", "btn-editor-add-ex"
     ];
@@ -829,22 +787,7 @@
       activeRoutineId = activeIdStr;
     }
     
-    var logsStr = getQueryOrHashParam("logs");
-    if (logsStr) {
-      fullLogsStr = logsStr;
-      
-      var filterInfo = localStorage.getItem("pebble_gym_log_filter_info");
-      var filterWarn = localStorage.getItem("pebble_gym_log_filter_warn");
-      var filterError = localStorage.getItem("pebble_gym_log_filter_error");
-      
-      document.getElementById("filter-log-info").checked = (filterInfo !== "false");
-      document.getElementById("filter-log-warn").checked = (filterWarn !== "false");
-      document.getElementById("filter-log-error").checked = (filterError !== "false");
 
-      applyLogFilters();
-    }
-    
-    var logModeStr = getQueryOrHashParam("logging_mode");
     
     // Load local options from localStorage or query if sent
     var storedLanguage = localStorage.getItem("pebble_gym_language");
@@ -874,9 +817,7 @@
     var showHints = localStorage.getItem("pebble_gym_show_hints") !== "false";
     document.getElementById("show-hints").checked = showHints;
     
-    if (logModeStr) {
-      document.getElementById("logging-mode").value = logModeStr;
-    }
+
     
     updatePageLanguage();
   }
@@ -1560,30 +1501,6 @@
     document.body.removeChild(link);
   }
 
-  function downloadLogs() {
-    var logs = document.getElementById("app-logs-view").value;
-    if (!logs) {
-      alert("No logs to download.");
-      return;
-    }
-    var blob = new Blob([logs], { type: "text/plain;charset=utf-8" });
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement("a");
-    link.href = url;
-    link.download = "pebble_gym_logs_" + Date.now() + ".txt";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-
-  function clearLogs() {
-    if (confirm(language === "de" ? "Alle Logs löschen?" : "Clear all logs?")) {
-      document.getElementById("app-logs-view").value = "";
-      fullLogsStr = "";
-      clearLogsRequested = true;
-    }
-  }
 
   // Save Settings and Close WebView
   function saveAndClose() {
@@ -1592,7 +1509,6 @@
     language = document.getElementById("language-select").value;
     var autoReload = document.getElementById("auto-reload").checked;
     var showHints = document.getElementById("show-hints").checked;
-    var loggingMode = document.getElementById("logging-mode").value;
     
     localStorage.setItem("pebble_gym_unit", weightUnit);
     localStorage.setItem("pebble_gym_rest", restTime);
@@ -1611,9 +1527,7 @@
       weight_unit: weightUnit,
       rest_time: restTime,
       auto_reload: autoReload ? "true" : "false",
-      show_button_hints: showHints ? "true" : "false",
-      logging_mode: loggingMode,
-      clear_logs: clearLogsRequested ? "true" : "false"
+      show_button_hints: showHints ? "true" : "false"
     };
     
     var responseStr = encodeURIComponent(JSON.stringify(response));
@@ -1621,39 +1535,6 @@
     window.location.href = "pebblejs://close#" + responseStr;
   }
 
-  function applyLogFilters() {
-    var showInfo = document.getElementById("filter-log-info").checked;
-    var showWarn = document.getElementById("filter-log-warn").checked;
-    var showError = document.getElementById("filter-log-error").checked;
-
-    localStorage.setItem("pebble_gym_log_filter_info", showInfo);
-    localStorage.setItem("pebble_gym_log_filter_warn", showWarn);
-    localStorage.setItem("pebble_gym_log_filter_error", showError);
-
-    var lines = fullLogsStr.split("\n");
-    var filteredLines = [];
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      if (!line) continue;
-      var hasInfo = line.indexOf("[INFO]") !== -1;
-      var hasWarn = line.indexOf("[WARN]") !== -1;
-      var hasError = line.indexOf("[ERROR]") !== -1;
-      var hasDebug = line.indexOf("[DEBUG]") !== -1;
-      
-      var hasNoMarker = !hasInfo && !hasWarn && !hasError && !hasDebug;
-      
-      if ((hasInfo && showInfo) || 
-          (hasWarn && showWarn) || 
-          (hasError && showError) || 
-          (hasDebug && showInfo) || // Show debug if Info is enabled for now
-          (hasNoMarker)) {
-        filteredLines.push(line);
-      }
-    }
-    var logTextarea = document.getElementById("app-logs-view");
-    logTextarea.value = filteredLines.join("\n");
-    logTextarea.scrollTop = logTextarea.scrollHeight;
-  }
 
   // Initialize page
   window.onload = init;
