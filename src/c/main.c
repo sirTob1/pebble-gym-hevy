@@ -182,6 +182,10 @@ static void restore_workout_progress_from_persist() {
 static int s_current_heart_rate = 0;
 #endif
 static char s_pending_routine_id_to_activate[64] = "";
+static bool s_has_resumable_workout = false;
+static char s_resumable_routine_id[64] = "";
+static char s_resumable_routine_name[64] = "";
+static char s_routine_to_overwrite_with[64] = "";
 static int s_weight_unit = UNIT_KG;
 static int s_rest_seconds = 90;
 static int s_rest_seconds_left = 0;
@@ -1227,6 +1231,8 @@ static int16_t confirm_menu_get_header_height_callback(MenuLayer *menu_layer, ui
 static void confirm_menu_draw_header_callback(GContext* ctx, const Layer *cell_layer, uint16_t section_index, void *data) {
   if (s_pending_action == 1) {
     menu_cell_basic_header_draw(ctx, cell_layer, translate("Wirklich beenden?", "Finish workout?"));
+  } else if (s_pending_action == 3) {
+    menu_cell_basic_header_draw(ctx, cell_layer, translate("Workout überschreiben?", "Overwrite workout?"));
   } else {
     menu_cell_basic_header_draw(ctx, cell_layer, translate("Wirklich verwerfen?", "Discard workout?"));
   }
@@ -1234,7 +1240,11 @@ static void confirm_menu_draw_header_callback(GContext* ctx, const Layer *cell_l
 
 static void confirm_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
   if (cell_index->row == 0) {
-    menu_cell_basic_draw(ctx, cell_layer, translate("Ja", "Yes"), translate("Bestätigen", "Confirm"), NULL);
+    if (s_pending_action == 3) {
+      menu_cell_basic_draw(ctx, cell_layer, translate("Ja, Neu starten", "Yes, Start New"), translate("Altes löschen", "Clear old data"), NULL);
+    } else {
+      menu_cell_basic_draw(ctx, cell_layer, translate("Ja", "Yes"), translate("Bestätigen", "Confirm"), NULL);
+    }
   } else {
     menu_cell_basic_draw(ctx, cell_layer, translate("Nein", "No"), translate("Zurück", "Go back"), NULL);
   }
@@ -1246,13 +1256,25 @@ static void confirm_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
     if (s_pending_action == 1) {
       send_workout_action(1); // FINISH
       vibes_double_pulse();
+      clear_workout_state();
+      s_workout_in_progress = false;
+      window_stack_pop_all(true);
+    } else if (s_pending_action == 3) {
+      // OVERWRITE WORKOUT
+      clear_workout_state();
+      s_workout_in_progress = false;
+      s_explicit_activation_requested = true;
+      snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", s_routine_to_overwrite_with);
+      window_stack_pop(false);
+      window_stack_pop(true);
+      vibes_short_pulse();
     } else {
       send_workout_action(2); // CANCEL
       vibes_short_pulse();
+      clear_workout_state();
+      s_workout_in_progress = false;
+      window_stack_pop_all(true);
     }
-    clear_workout_state();
-    s_workout_in_progress = false;
-    window_stack_pop_all(true);
   } else {
     // No
     window_stack_pop(true);
@@ -1354,7 +1376,11 @@ static void exercise_menu_window_unload(Window *window) {
 
 // Routine Selection Menu callbacks
 static uint16_t routine_menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
-  return s_routine_count == 0 ? 1 : s_routine_count;
+  uint16_t count = s_routine_count == 0 ? 1 : s_routine_count;
+  if (s_has_resumable_workout && s_routine_count > 0) {
+    count += 1;
+  }
+  return count;
 }
 
 static void routine_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
@@ -1364,6 +1390,15 @@ static void routine_menu_draw_row_callback(GContext* ctx, const Layer *cell_laye
   }
   
   int idx = cell_index->row;
+  
+  if (s_has_resumable_workout) {
+    if (idx == 0) {
+      menu_cell_basic_draw(ctx, cell_layer, translate("Workout fortsetzen", "Resume Workout"), s_resumable_routine_name, NULL);
+      return;
+    }
+    idx -= 1;
+  }
+  
   RoutineHeader *r = &s_routines[idx];
   bool is_active = (strcmp(r->id, s_active_routine_id) == 0);
   
@@ -1381,7 +1416,35 @@ static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
   if (s_routine_count == 0) return;
   
   int idx = cell_index->row;
+  
+  if (s_has_resumable_workout) {
+    if (idx == 0) {
+      // Resume workout
+      s_restoring_persisted_workout = true;
+      snprintf(s_active_routine_id, sizeof(s_active_routine_id), "%s", s_resumable_routine_id);
+      snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", s_resumable_routine_id);
+      window_stack_pop(true);
+      vibes_short_pulse();
+      return;
+    }
+    idx -= 1;
+  }
+  
   RoutineHeader *r = &s_routines[idx];
+  
+  if (s_has_resumable_workout) {
+    snprintf(s_routine_to_overwrite_with, sizeof(s_routine_to_overwrite_with), "%s", r->id);
+    s_pending_action = 3;
+    if (!s_confirm_window) {
+      s_confirm_window = window_create();
+      window_set_window_handlers(s_confirm_window, (WindowHandlers) {
+        .load = confirm_window_load,
+        .unload = confirm_window_unload
+      });
+    }
+    window_stack_push(s_confirm_window, true);
+    return;
+  }
   
   // Save the selected routine ID to trigger activation sync after window transition completes
   snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", r->id);
@@ -1394,6 +1457,24 @@ static void routine_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_
 }
 
 static void routine_menu_window_load(Window *window) {
+  s_has_resumable_workout = false;
+  if (persist_exists(PERSIST_KEY_WORKOUT_STATE)) {
+    PersistWorkoutState state;
+    memset(&state, 0, sizeof(state));
+    persist_read_data(PERSIST_KEY_WORKOUT_STATE, &state, sizeof(state));
+    if (state.in_progress) {
+      s_has_resumable_workout = true;
+      snprintf(s_resumable_routine_id, sizeof(s_resumable_routine_id), "%s", state.active_routine_id);
+      snprintf(s_resumable_routine_name, sizeof(s_resumable_routine_name), "%s", translate("Unbekanntes Workout", "Unknown Workout"));
+      for (int i = 0; i < s_routine_count; i++) {
+        if (strcmp(s_routines[i].id, state.active_routine_id) == 0) {
+          snprintf(s_resumable_routine_name, sizeof(s_resumable_routine_name), "%s", s_routines[i].name);
+          break;
+        }
+      }
+    }
+  }
+
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
   

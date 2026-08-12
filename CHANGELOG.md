@@ -7,12 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-08-12
+
+### Added
+- **Resume Workout:** Added a dedicated "Resume Workout" option to the Routine Menu for interrupted sessions. (Closes #45)
+- **Overwrite Protection:** Added a confirmation dialog if a user tries to start a new routine while a workout is already in progress, preventing accidental data loss.
+
+## [3.6.0] - 2026-08-07
+
+### Added
+- **Custom Rest Timer:** Added the ability to specify a custom rest timer (in seconds) directly from the Settings page instead of being limited to predefined options. (Closes #35)
+
 ### Removed
 - **App Logging:** Removed developer-centric logging features and UI from the app to streamline the codebase and settings page. (Closes #43)
 
 ### Fixed
-- **App Logging:** Fixed an issue where the "Clear Logs" button in the Settings Page did not correctly clear the logs from the internal UI state, causing them to reappear when changing log filters. (Closes #41)
-- **Workout Persistence Crash:** Fixed a memory limit bug in the persistent storage structs that caused workout session progress to silently fail to save and subsequently be lost if the app crashed.
+- **Workout Persistence Crash:** Fixed a memory limit bug in the persistent storage structs that caused workout session progress to silently fail to save and subsequently be lost if the app crashed. (Closes #37)
 
 ## [3.5.0] - 2026-08-06
 
