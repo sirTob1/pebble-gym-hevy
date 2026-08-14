@@ -1050,6 +1050,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
                 vibes_double_pulse();
                 
                 s_explicit_activation_requested = false;
+                s_pending_routine_id_to_activate[0] = '\0';
               } else if (s_restoring_persisted_workout) {
                 restore_workout_progress_from_persist();
                 s_restoring_persisted_workout = false;
@@ -1062,6 +1063,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
                 }
                 window_stack_push(s_workout_window, true);
                 vibes_double_pulse();
+                s_pending_routine_id_to_activate[0] = '\0';
               } else {
                 // Just refresh the sync screen to show it's idle
                 layer_mark_dirty(s_sync_layer);
@@ -1504,10 +1506,7 @@ static void outbox_failed_handler(DictionaryIterator *iterator, AppMessageResult
 
 static void outbox_sent_handler(DictionaryIterator *iterator, void *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Outbox sent successfully");
-  if (s_pending_routine_id_to_activate[0] != '\0') {
-    APP_LOG(APP_LOG_LEVEL_INFO, "PebbleGym: Routine activation successfully transmitted to phone. Clearing pending state.");
-    s_pending_routine_id_to_activate[0] = '\0';
-  }
+  // (Removed clearing of pending routine id here; we clear it after sync completes)
 }
 
 static void init(void) {
@@ -1550,9 +1549,7 @@ static void init(void) {
   app_message_register_outbox_sent(outbox_sent_handler);
   app_message_open(2048, 256);
   
-  // Display initial waiting window
-  window_stack_push(s_sync_window, true);
-  
+  // Setup inbox/outbox handlers but do NOT push window yet
   if (persist_exists(PERSIST_KEY_WORKOUT_STATE)) {
     PersistWorkoutState state;
     memset(&state, 0, sizeof(state));
@@ -1561,12 +1558,17 @@ static void init(void) {
       s_restoring_persisted_workout = true;
       snprintf(s_active_routine_id, sizeof(s_active_routine_id), "%s", state.active_routine_id);
       snprintf(s_pending_routine_id_to_activate, sizeof(s_pending_routine_id_to_activate), "%s", state.active_routine_id);
+      // Display initial waiting window (this will trigger sync_window_appear)
+      window_stack_push(s_sync_window, true);
       return; // sync_window_appear will automatically send the activate request
     }
   }
 
   // Request active routine sync on boot
   send_request_sync();
+  
+  // Display initial waiting window (this will trigger sync_window_appear)
+  window_stack_push(s_sync_window, true);
 }
 
 static void deinit(void) {
