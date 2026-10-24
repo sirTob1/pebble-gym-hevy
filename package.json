@@ -1,7 +1,7 @@
 {
   "name": "pebble-gym-hevy",
   "author": "Antigravity",
-  "version": "3.8.0",
+  "version": "3.9.0",
   "keywords": [
     "pebble-app"
   ],
@@ -48,7 +48,14 @@
       "LOGGING_MODE"
     ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "IMAGE_MENU_ICON",
+          "file": "images/menu_icon.png",
+          "menuIcon": true
+        }
+      ]
     },
     "capabilities": [
       "configurable",
