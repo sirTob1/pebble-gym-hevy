@@ -24,6 +24,7 @@ PebbleGym brings your fitness routines directly to your wrist. Compatible with a
 *   💾 **Unlimited History & CSV Export**: The phone companion caches all completed workouts in `localStorage`, bypassing the watch's 4KB persistent storage limit. Export history into standard `.csv` spreadsheet files anytime.
 *   🛡️ **Workout Persistence & Crash Recovery**: The active workout state is continuously saved. If the app closes or crashes, you can resume exactly where you left off without losing any logged sets.
 *   ✅ **Workout Confirmation Dialog**: A safety prompt prevents accidental closure of your workout session from the quick exercise menu.
+*   🏋️ **Custom Watch Launcher Icon**: Features a dedicated high-contrast dumbbell icon in the Pebble system launcher (App Drawer) across all target platforms.
 
 ---
 
